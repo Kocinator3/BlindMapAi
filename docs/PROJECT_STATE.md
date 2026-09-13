@@ -24,7 +24,7 @@ Baseline: 34 tests passed, but new checks reproduced four failures. Interaction 
 Audit small-screen/large-text gameplay, Android document export/lifecycle, and Windows CI execution. Desktop polygon follow-up is `48108ce`, authoring is `38f0fdc`, concurrency is `f26e239`, area fairness is `efcfc6d`. Preserve existing recovery validation, provider allowlist, multipart preservation and strict schema.
 
 ## Settings persistence milestone
-Theme, language and provider settings now use a serialized update API with allowlisting and rollback on save failure. AI generation uses the same path and checks cancellation before sending. One regression covers failure rollback and successful secret filtering. This milestone is pending commit in the current worktree.
+Theme, language and provider settings now use a serialized update API with allowlisting and rollback on save failure. AI generation uses the same path and checks cancellation before sending. One regression covers failure rollback and successful secret filtering. This milestone is committed as `2c330c7`.
 
 ## Area fairness milestone
 Reproduced exact thin concave regions scoring zero and replaced fixed-grid sampling with projected polygon cross-section intersection. Seven tests cover thin/nested/reversed rings, slanted crossings, 200 analytical rectangles, near-capacity concave symmetry and antimeridian/high-latitude cases. The projection and sqrt(IoU) curve are unchanged; historical results are not rescored. Format/analyze clean; 64 tests and 3 Linux native flows pass. Linux release rebuilt successfully at `build/linux/x64/release/bundle/slepa_mapa`.
