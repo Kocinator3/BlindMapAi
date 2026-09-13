@@ -1,0 +1,102 @@
+{
+  "schemaVersion": 1,
+  "id": "czech-cities",
+  "title": "Česká města",
+  "description": "Offline výuková sada / Offline teaching pack",
+  "language": "cs",
+  "difficulty": "beginner",
+  "tags": [],
+  "unverified": false,
+  "map": {
+    "center": [
+      15.5,
+      49.8
+    ],
+    "longitudeSpan": 9,
+    "showCountryBorders": true
+  },
+  "questions": [
+    {
+      "id": "praha",
+      "prompt": "Kde leží Praha?",
+      "answerType": "point",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          14.4378,
+          50.0755
+        ]
+      },
+      "explanation": "Praha leží na Vltavě ve středních Čechách. / Prague lies on the Vltava in central Bohemia.",
+      "scoring": {
+        "toleranceKm": 30
+      },
+      "hints": [],
+      "tags": []
+    },
+    {
+      "id": "brno",
+      "prompt": "Kde leží Brno?",
+      "answerType": "point",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          16.6068,
+          49.1951
+        ]
+      },
+      "explanation": "Brno je největší město Moravy. / Brno is the largest city in Moravia.",
+      "scoring": {
+        "toleranceKm": 30
+      },
+      "hints": [],
+      "tags": []
+    },
+    {
+      "id": "ostrava",
+      "prompt": "Kde leží Ostrava?",
+      "answerType": "point",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          18.2625,
+          49.8209
+        ]
+      },
+      "explanation": "Ostrava leží na severovýchodě Česka u hranic s Polskem. / Ostrava is in northeastern Czechia near Poland.",
+      "scoring": {
+        "toleranceKm": 30
+      },
+      "hints": [],
+      "tags": []
+    },
+    {
+      "id": "three",
+      "prompt": "Označ Prahu, Brno a Ostravu.",
+      "answerType": "multiPoint",
+      "geometry": {
+        "type": "MultiPoint",
+        "coordinates": [
+          [
+            14.4378,
+            50.0755
+          ],
+          [
+            16.6068,
+            49.1951
+          ],
+          [
+            18.2625,
+            49.8209
+          ]
+        ]
+      },
+      "explanation": "Pořadí bodů nerozhoduje. / Point order does not matter.",
+      "scoring": {
+        "toleranceKm": 30
+      },
+      "hints": [],
+      "tags": []
+    }
+  ]
+}

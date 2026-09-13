@@ -1,0 +1,132 @@
+{
+  "schemaVersion": 1,
+  "id": "czech-rivers",
+  "title": "České řeky",
+  "description": "Offline výuková sada / Offline teaching pack",
+  "language": "cs",
+  "difficulty": "beginner",
+  "tags": [],
+  "unverified": true,
+  "map": {
+    "center": [
+      15.5,
+      49.8
+    ],
+    "longitudeSpan": 9,
+    "showCountryBorders": true
+  },
+  "questions": [
+    {
+      "id": "vltava",
+      "prompt": "Vyznač přibližný tok Vltavy.",
+      "answerType": "polyline",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            13.56,
+            48.98
+          ],
+          [
+            14.05,
+            48.74
+          ],
+          [
+            14.32,
+            48.81
+          ],
+          [
+            14.47,
+            48.97
+          ],
+          [
+            14.36,
+            49.24
+          ],
+          [
+            14.18,
+            49.51
+          ],
+          [
+            14.42,
+            49.85
+          ],
+          [
+            14.42,
+            50.08
+          ],
+          [
+            14.48,
+            50.35
+          ]
+        ]
+      },
+      "explanation": "Vltava teče přes Prahu a ústí do Labe u Mělníka. Výuková linie je zjednodušená. / The Vltava joins the Elbe at Mělník; this teaching line is approximate.",
+      "scoring": {
+        "toleranceKm": 18
+      },
+      "hints": [],
+      "tags": []
+    },
+    {
+      "id": "elbe",
+      "prompt": "Vyznač českou část Labe.",
+      "answerType": "polyline",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            15.54,
+            50.77
+          ],
+          [
+            15.61,
+            50.62
+          ],
+          [
+            15.81,
+            50.43
+          ],
+          [
+            15.83,
+            50.21
+          ],
+          [
+            15.77,
+            50.04
+          ],
+          [
+            15.2,
+            50.02
+          ],
+          [
+            14.88,
+            50.19
+          ],
+          [
+            14.48,
+            50.35
+          ],
+          [
+            14.14,
+            50.53
+          ],
+          [
+            14.04,
+            50.66
+          ],
+          [
+            14.24,
+            50.85
+          ]
+        ]
+      },
+      "explanation": "Labe pramení v Krkonoších a pokračuje do Německa. Linie je zjednodušená. / The Elbe rises in the Krkonoše and flows into Germany.",
+      "scoring": {
+        "toleranceKm": 18
+      },
+      "hints": [],
+      "tags": []
+    }
+  ]
+}

@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "id": "czech-mountains",
+  "title": "Česká pohoří",
+  "description": "Offline výuková sada / Offline teaching pack",
+  "language": "cs",
+  "difficulty": "beginner",
+  "tags": [],
+  "unverified": true,
+  "map": {
+    "center": [
+      15.5,
+      49.8
+    ],
+    "longitudeSpan": 9,
+    "showCountryBorders": true
+  },
+  "questions": [
+    {
+      "id": "krkonose",
+      "prompt": "Obkresli oblast Krkonoš.",
+      "answerType": "freehandArea",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              15.36,
+              50.73
+            ],
+            [
+              15.53,
+              50.83
+            ],
+            [
+              15.85,
+              50.75
+            ],
+            [
+              15.9,
+              50.61
+            ],
+            [
+              15.65,
+              50.56
+            ],
+            [
+              15.39,
+              50.62
+            ],
+            [
+              15.36,
+              50.73
+            ]
+          ]
+        ]
+      },
+      "explanation": "Krkonoše leží podél česko-polské hranice. Obrys je orientační. / Krkonoše straddle the Czech–Polish border; this outline is approximate.",
+      "scoring": {
+        "toleranceKm": 30
+      },
+      "hints": [],
+      "tags": []
+    },
+    {
+      "id": "sumava",
+      "prompt": "Zakroužkuj přibližnou oblast Šumavy.",
+      "answerType": "circle",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              13.1,
+              49.22
+            ],
+            [
+              13.35,
+              49.3
+            ],
+            [
+              14.15,
+              48.72
+            ],
+            [
+              14.03,
+              48.55
+            ],
+            [
+              13.55,
+              48.82
+            ],
+            [
+              13.1,
+              49.22
+            ]
+          ]
+        ]
+      },
+      "explanation": "Šumava leží na jihozápadě Čech. / Šumava lies in southwestern Bohemia.",
+      "scoring": {
+        "toleranceKm": 30
+      },
+      "hints": [],
+      "tags": []
+    }
+  ]
+}

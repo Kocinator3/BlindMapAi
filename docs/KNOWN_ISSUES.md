@@ -1,2 +1,12 @@
 # Known issues
-Application implementation has not started. Flutter SDK is not on PATH. No native artifacts or tests exist yet.
+- First full release candidate is incomplete; native integration tests and device verification pending.
+- River and mountain demos are approximate manually authored teaching geometries, marked unverified; need source-backed geographic review.
+- Android file export currently uses clipboard guidance; native sharing/export still needed.
+- AI credentials are memory-only; no optional OS secure vault yet. Provider timeout/name settings need UI expansion.
+- Schema v1 supports Polygon exterior rings only; no holes/MultiPolygon. Map supports country outlines only; internal borders/rivers/lakes and separate coastline toggles pending.
+- Regional area projection is limited to 3500 km extent. High-latitude/global polygon fairness is not established.
+- Visual editor currently edits the first part of a MultiLineString; must preserve or explicitly reject multipart editing before saving.
+- Need unsaved-edit navigation protection, richer viewport/difficulty settings and exhaustive localization/accessibility review.
+- Practice and learning currently share feedback behavior; challenge has timer/combo but no combo reward.
+- Native Windows build/CI not executed; Android release in progress. APK signing remains development-only.
+- Performance profile and deeper geometry degeneracy/self-touch checks pending.
