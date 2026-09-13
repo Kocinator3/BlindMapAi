@@ -31,11 +31,36 @@ void main() {
       expect(codec.decode(level.encode()).toJson(), level.toJson());
     }
   });
-  test('version zero migration', () {
-    final json = cities().toJson();
-    json['schemaVersion'] = 0;
-    json['name'] = json.remove('title');
-    expect(codec.fromJson(json).title, 'Česká města');
+
+  test('mountain area questions use polygon geometries consistently', () {
+    final level = codec.decode(
+      File('assets/levels/czech-mountains.json').readAsStringSync(),
+    );
+    expect(level.questions, isNotEmpty);
+    for (final question in level.questions) {
+      expect([
+        AnswerType.polygon,
+        AnswerType.freehandArea,
+        AnswerType.circle,
+      ], contains(question.answerType));
+      expect(question.geometry.type, 'Polygon');
+      expect(
+        question.geometry.parts.single.first.lon,
+        question.geometry.parts.single.last.lon,
+      );
+      expect(
+        question.geometry.parts.single.first.lat,
+        question.geometry.parts.single.last.lat,
+      );
+    }
+  });
+  test('version zero fixture migration', () {
+    final level = codec.decode(
+      File('test/fixtures/v0-level.json').readAsStringSync(),
+    );
+    expect(level.title, 'Česká města');
+    expect(level.toJson()['schemaVersion'], 1);
+    expect(level.questions.single.geometry.points.first.lon, 14.4378);
   });
   test('actionable mismatch and duplicate IDs', () {
     final json = cities().toJson();
@@ -302,4 +327,49 @@ void main() {
       expect(loaded.streak, 1);
     },
   );
+  test('semantically corrupt primary never overwrites valid backup', () async {
+    final directory = await Directory.systemTemp.createTemp(
+      'slepamapa-recovery-',
+    );
+    addTearDown(() => directory.delete(recursive: true));
+    final store = AppStore(directory: directory);
+    await store.load();
+    final level = codec.fromJson({...cities().toJson(), 'id': 'custom-cities'});
+    await store.put(level);
+    await store.save();
+    final backup = File('${directory.path}/state.backup.json');
+    final goodBackup = await backup.readAsString();
+    await File('${directory.path}/state.json').writeAsString('{"version":999}');
+    final recovered = AppStore(directory: directory);
+    await recovered.load();
+    expect(recovered.custom.single.id, 'custom-cities');
+    expect(recovered.warning, contains('Recovered'));
+    await recovered.save();
+    expect(await backup.readAsString(), goodBackup);
+    expect(
+      directory.listSync().where((f) => f.path.contains('state.corrupt.')),
+      isNotEmpty,
+    );
+  });
+  test('provider secrets are excluded even if put into settings map', () {
+    final store = AppStore();
+    store.provider = {
+      'baseUrl': 'https://example.com/v1',
+      'key': 'never-export',
+      'apiKey': 'never-export',
+    };
+    expect(jsonEncode(store.snapshot()), isNot(contains('never-export')));
+  });
+  test('multipoint capacity is validated before assignment scoring', () {
+    final json = cities().toJson();
+    json['questions'] = [json['questions'].last];
+    json['questions'][0]['geometry']['coordinates'] = List.generate(
+      13,
+      (i) => [i, 50],
+    );
+    expect(
+      () => codec.fromJson(json),
+      throwsA(isA<LevelValidationException>()),
+    );
+  });
 }

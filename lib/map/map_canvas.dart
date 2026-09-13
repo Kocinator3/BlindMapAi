@@ -19,6 +19,7 @@ class MapCanvas extends StatefulWidget {
   final ValueChanged<List<GeoPoint>> onChanged;
   final bool readOnly;
   final bool czech;
+  final bool showTools;
   const MapCanvas({
     super.key,
     required this.land,
@@ -29,6 +30,7 @@ class MapCanvas extends StatefulWidget {
     this.target,
     this.readOnly = false,
     this.czech = true,
+    this.showTools = true,
   });
   static Future<List<List<GeoPoint>>> loadLand() async {
     final json = jsonDecode(
@@ -55,6 +57,7 @@ class MapCanvas extends StatefulWidget {
 }
 
 class _MapCanvasState extends State<MapCanvas> {
+  static const desktopDragThreshold = 6.0;
   DrawTool tool = DrawTool.draw;
   late GeoPoint center = widget.config.center;
   late double span = widget.config.span;
@@ -65,6 +68,46 @@ class _MapCanvasState extends State<MapCanvas> {
   List<GeoPoint> draft = [];
   final List<List<GeoPoint>> undo = [], redo = [];
   Size size = Size.zero;
+  Offset? _mouseStart;
+  Offset? _mouseLast;
+  bool _mousePanning = false;
+  bool _mouseFreehand = false;
+  bool _mouseClickHandled = false;
+  double fittedSpan(Size viewport) =>
+      (widget.config.span *
+              math.max(
+                1.0,
+                viewport.width / math.max(1.0, viewport.height) / 1.6,
+              ))
+          .clamp(0.1, 160);
+
+  bool get _areaDrag =>
+      widget.type == AnswerType.freehandArea ||
+      widget.type == AnswerType.circle;
+
+  @override
+  void didUpdateWidget(covariant MapCanvas oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final viewportChanged =
+        oldWidget.config.center.lon != widget.config.center.lon ||
+        oldWidget.config.center.lat != widget.config.center.lat ||
+        oldWidget.config.span != widget.config.span;
+    if (oldWidget.type != widget.type || viewportChanged) {
+      draft = [];
+      selected = null;
+      circleCenter = null;
+      _mouseStart = null;
+      _mouseLast = null;
+      _mousePanning = false;
+      _mouseFreehand = false;
+      _mouseClickHandled = false;
+      undo.clear();
+      redo.clear();
+      center = widget.config.center;
+      span = widget.config.span;
+    }
+  }
+
   String tr(String cs, String en) => widget.czech ? cs : en;
   double get scale => size.width / span;
   double get latitudeScale =>
@@ -146,6 +189,69 @@ class _MapCanvasState extends State<MapCanvas> {
     }
   }
 
+  bool get _mouseDown => _mouseStart != null;
+  bool get _mousePanIntent =>
+      HardwareKeyboard.instance.isLogicalKeyPressed(LogicalKeyboardKey.space);
+
+  void _panBy(Offset delta) {
+    if (delta == Offset.zero || size == Size.zero) return;
+    setState(() {
+      center = GeoPoint(
+        (center.lon - delta.dx / scale).clamp(-180, 180),
+        (center.lat + delta.dy / latitudeScale).clamp(-80, 80),
+      );
+    });
+  }
+
+  void _mouseDownEvent(PointerDownEvent event) {
+    if (event.kind != PointerDeviceKind.mouse) return;
+    final primary = event.buttons & kPrimaryMouseButton != 0;
+    final middle = event.buttons & kMiddleMouseButton != 0;
+    if (!primary && !middle) return;
+    _mouseStart = event.localPosition;
+    _mouseLast = event.localPosition;
+    _mousePanning = middle || _mousePanIntent;
+    // Freehand and vertex-move retain their intentional drag gestures. Other
+    // geometry tools use drag for map panning and clicks for placement.
+    _mouseFreehand =
+        primary && (_areaDrag || tool == DrawTool.move) && !_mousePanning;
+    if (_mousePanning) draft = [];
+    if (_mousePanning) setState(() {});
+  }
+
+  void _mouseMoveEvent(PointerMoveEvent event) {
+    if (event.kind != PointerDeviceKind.mouse || !_mouseDown) return;
+    final last = _mouseLast ?? event.localPosition;
+    _mouseLast = event.localPosition;
+    final start = _mouseStart!;
+    if (!_mouseFreehand &&
+        !_mousePanning &&
+        (event.localPosition - start).distance >= desktopDragThreshold) {
+      setState(() {
+        _mousePanning = true;
+        draft = [];
+      });
+    }
+    if (_mousePanning) _panBy(event.localPosition - last);
+  }
+
+  void _mouseUpEvent(PointerUpEvent event) {
+    if (event.kind != PointerDeviceKind.mouse || !_mouseDown) return;
+    final start = _mouseStart!;
+    final wasPan = _mousePanning;
+    final wasFreehand = _mouseFreehand;
+    _mouseStart = null;
+    _mouseLast = null;
+    _mousePanning = false;
+    _mouseFreehand = false;
+    if (!wasPan &&
+        !wasFreehand &&
+        (event.localPosition - start).distance < desktopDragThreshold) {
+      _mouseClickHandled = true;
+      tap(event.localPosition);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Focus(
@@ -181,18 +287,45 @@ class _MapCanvasState extends State<MapCanvas> {
             runSpacing: 2,
             alignment: WrapAlignment.center,
             children: [
-              for (final t in DrawTool.values)
-                ChoiceChip(
-                  label: Text(switch (t) {
-                    DrawTool.navigate => tr('Posun', 'Navigate'),
-                    DrawTool.draw => tr('Kreslit', 'Draw'),
-                    DrawTool.move => tr('Přesun bodu', 'Move vertex'),
-                    DrawTool.addVertex => tr('Přidat bod', 'Add vertex'),
-                    DrawTool.deleteVertex => tr('Smazat bod', 'Delete vertex'),
-                  }),
-                  selected: tool == t,
-                  onSelected: (_) => setState(() => tool = t),
-                ),
+              if (MediaQuery.sizeOf(context).width < 850 && widget.showTools)
+                DropdownButton<DrawTool>(
+                  value: tool,
+                  items: [
+                    for (final t in DrawTool.values)
+                      DropdownMenuItem(
+                        value: t,
+                        child: Text(switch (t) {
+                          DrawTool.navigate => tr('Posun', 'Navigate'),
+                          DrawTool.draw => tr('Kreslit', 'Draw'),
+                          DrawTool.move => tr('Přesun bodu', 'Move vertex'),
+                          DrawTool.addVertex => tr('Přidat bod', 'Add vertex'),
+                          DrawTool.deleteVertex => tr(
+                            'Smazat bod',
+                            'Delete vertex',
+                          ),
+                        }),
+                      ),
+                  ],
+                  onChanged: (t) => setState(() => tool = t!),
+                )
+              else if (widget.showTools)
+                for (final t in DrawTool.values.where(
+                  (t) => t != DrawTool.navigate,
+                ))
+                  ChoiceChip(
+                    label: Text(switch (t) {
+                      DrawTool.navigate => tr('Posun', 'Navigate'),
+                      DrawTool.draw => tr('Kreslit', 'Draw'),
+                      DrawTool.move => tr('Přesun bodu', 'Move vertex'),
+                      DrawTool.addVertex => tr('Přidat bod', 'Add vertex'),
+                      DrawTool.deleteVertex => tr(
+                        'Smazat bod',
+                        'Delete vertex',
+                      ),
+                    }),
+                    selected: tool == t,
+                    onSelected: (_) => setState(() => tool = t),
+                  ),
               IconButton(
                 tooltip: tr('Zpět (Ctrl+Z)', 'Undo (Ctrl+Z)'),
                 onPressed: widget.readOnly ? null : () => history(false),
@@ -223,7 +356,7 @@ class _MapCanvasState extends State<MapCanvas> {
               IconButton(
                 tooltip: tr('Výchozí pohled', 'Reset view'),
                 onPressed: () => setState(() {
-                  span = widget.config.span;
+                  span = fittedSpan(size);
                   center = widget.config.center;
                 }),
                 icon: const Icon(Icons.center_focus_strong),
@@ -235,130 +368,164 @@ class _MapCanvasState extends State<MapCanvas> {
               borderRadius: BorderRadius.circular(20),
               child: LayoutBuilder(
                 builder: (context, constraints) {
+                  if (size == Size.zero) span = fittedSpan(constraints.biggest);
                   size = constraints.biggest;
                   return Semantics(
                     label: tr(
                       'Slepá mapa. Režim Posun umožňuje přiblížení a posun. Režim Kreslit zadává odpověď.',
                       'Blind map. Navigate mode pans and zooms; Draw mode enters an answer.',
                     ),
-                    child: Listener(
-                      onPointerSignal: (event) {
-                        if (event is PointerScrollEvent) {
-                          setState(
-                            () => span =
-                                (span * math.exp(event.scrollDelta.dy * 0.0015))
-                                    .clamp(0.1, 160),
-                          );
-                        }
-                      },
-                      child: GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onSecondaryTap: () => setState(() {
-                          draft = [];
-                          tool = DrawTool.navigate;
-                        }),
-                        onTapUp: (details) => tap(details.localPosition),
-                        onScaleStart: (details) {
-                          gestureStart = details.localFocalPoint;
-                          gestureCenter = center;
-                          startSpan = span;
-                          if (widget.readOnly || tool == DrawTool.navigate) {
-                            return;
-                          }
-                          if (tool == DrawTool.move) {
-                            selected = nearest(details.localFocalPoint);
-                            draft = List.of(widget.points);
-                          } else if (tool == DrawTool.draw) {
-                            circleCenter = geo(details.localFocalPoint);
-                            draft = [circleCenter!];
-                          }
-                        },
-                        onScaleUpdate: (details) {
-                          if (tool == DrawTool.navigate || widget.readOnly) {
-                            setState(() {
-                              span = (startSpan / details.scale).clamp(
-                                0.1,
-                                160,
-                              );
-                              final delta =
-                                  details.localFocalPoint - gestureStart!;
-                              center = GeoPoint(
-                                (gestureCenter!.lon - delta.dx / scale).clamp(
-                                  -180,
-                                  180,
-                                ),
-                                (gestureCenter!.lat + delta.dy / latitudeScale)
-                                    .clamp(-80, 80),
-                              );
-                            });
-                            return;
-                          }
-                          if (details.pointerCount > 1) return;
-                          final p = geo(details.localFocalPoint);
-                          if (tool == DrawTool.move &&
-                              selected != null &&
-                              selected! < draft.length) {
-                            setState(() => draft[selected!] = p);
-                            return;
-                          }
-                          if (tool != DrawTool.draw) return;
-                          if (widget.type == AnswerType.circle &&
-                              circleCenter != null) {
-                            final c = screen(circleCenter!),
-                                r = (details.localFocalPoint - c).distance;
+                    child: MouseRegion(
+                      cursor: _mousePanning
+                          ? SystemMouseCursors.grabbing
+                          : widget.type == AnswerType.freehandArea ||
+                                tool != DrawTool.navigate
+                          ? SystemMouseCursors.precise
+                          : SystemMouseCursors.basic,
+                      child: Listener(
+                        onPointerDown: _mouseDownEvent,
+                        onPointerMove: _mouseMoveEvent,
+                        onPointerUp: _mouseUpEvent,
+                        onPointerSignal: (event) {
+                          if (event is PointerScrollEvent) {
                             setState(
-                              () => draft = [
-                                for (var i = 0; i < 48; i++)
-                                  geo(
-                                    c +
-                                        Offset(
-                                          math.cos(i * math.pi / 24) * r,
-                                          math.sin(i * math.pi / 24) * r,
-                                        ),
-                                  ),
-                              ],
+                              () => span =
+                                  (span *
+                                          math.exp(
+                                            event.scrollDelta.dy * 0.0015,
+                                          ))
+                                      .clamp(0.1, 160),
                             );
-                          } else if (widget.type == AnswerType.polyline ||
-                              widget.type == AnswerType.freehandArea) {
-                            if (draft.length < 500 &&
-                                (draft.isEmpty ||
-                                    (screen(draft.last) -
-                                                details.localFocalPoint)
-                                            .distance >
-                                        4)) {
-                              setState(() => draft.add(p));
+                          }
+                        },
+                        child: GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTapUp: (details) {
+                            if (_mouseClickHandled) {
+                              _mouseClickHandled = false;
+                            } else {
+                              tap(details.localPosition);
                             }
-                          }
-                        },
-                        onScaleEnd: (_) {
-                          if (!widget.readOnly &&
-                              draft.isNotEmpty &&
-                              (tool == DrawTool.move ||
-                                  widget.type == AnswerType.polyline ||
-                                  widget.type == AnswerType.freehandArea ||
-                                  widget.type == AnswerType.circle)) {
-                            change(
-                              tool == DrawTool.move
-                                  ? List.of(draft)
-                                  : simplify(draft, toleranceKm: span * 0.035),
-                            );
-                          }
-                          setState(() => draft = []);
-                        },
-                        child: RepaintBoundary(
-                          child: CustomPaint(
-                            size: size,
-                            painter: _MapPainter(
-                              land: widget.land,
-                              center: center,
-                              span: span,
-                              points: draft.isEmpty ? widget.points : draft,
-                              type: widget.type,
-                              target: widget.target,
-                              borders: widget.config.borders,
-                              dark:
-                                  Theme.of(context).brightness ==
-                                  Brightness.dark,
+                          },
+                          onSecondaryTap: () => setState(() {
+                            draft = [];
+                            tool = DrawTool.navigate;
+                          }),
+                          onScaleStart: (details) {
+                            gestureStart = details.localFocalPoint;
+                            gestureCenter = center;
+                            startSpan = span;
+                            if (_mouseDown && !_mouseFreehand ||
+                                _mousePanning) {
+                              return;
+                            }
+                            if (widget.readOnly || tool == DrawTool.navigate) {
+                              return;
+                            }
+                            if (tool == DrawTool.move) {
+                              selected = nearest(details.localFocalPoint);
+                              draft = List.of(widget.points);
+                            } else if (tool == DrawTool.draw) {
+                              circleCenter = geo(details.localFocalPoint);
+                              draft = [circleCenter!];
+                            }
+                          },
+                          onScaleUpdate: (details) {
+                            if (_mousePanning) return;
+                            if (tool == DrawTool.navigate ||
+                                widget.readOnly ||
+                                details.pointerCount > 1) {
+                              setState(() {
+                                span = (startSpan / details.scale).clamp(
+                                  0.1,
+                                  160,
+                                );
+                                final delta =
+                                    details.localFocalPoint - gestureStart!;
+                                center = GeoPoint(
+                                  (gestureCenter!.lon - delta.dx / scale).clamp(
+                                    -180,
+                                    180,
+                                  ),
+                                  (gestureCenter!.lat +
+                                          delta.dy / latitudeScale)
+                                      .clamp(-80, 80),
+                                );
+                              });
+                              return;
+                            }
+                            if (details.pointerCount > 1) return;
+                            final p = geo(details.localFocalPoint);
+                            if (tool == DrawTool.move &&
+                                selected != null &&
+                                selected! < draft.length) {
+                              setState(() => draft[selected!] = p);
+                              return;
+                            }
+                            if (tool != DrawTool.draw) return;
+                            if (widget.type == AnswerType.circle &&
+                                circleCenter != null) {
+                              final c = screen(circleCenter!),
+                                  r = (details.localFocalPoint - c).distance;
+                              setState(
+                                () => draft = [
+                                  for (var i = 0; i < 48; i++)
+                                    geo(
+                                      c +
+                                          Offset(
+                                            math.cos(i * math.pi / 24) * r,
+                                            math.sin(i * math.pi / 24) * r,
+                                          ),
+                                    ),
+                                ],
+                              );
+                            } else if (widget.type == AnswerType.polyline ||
+                                widget.type == AnswerType.freehandArea) {
+                              if (draft.length < 500 &&
+                                  (draft.isEmpty ||
+                                      (screen(draft.last) -
+                                                  details.localFocalPoint)
+                                              .distance >
+                                          4)) {
+                                setState(() => draft.add(p));
+                              }
+                            }
+                          },
+                          onScaleEnd: (_) {
+                            if (!widget.readOnly &&
+                                draft.isNotEmpty &&
+                                (tool == DrawTool.move ||
+                                    widget.type == AnswerType.polyline ||
+                                    widget.type == AnswerType.freehandArea ||
+                                    _areaDrag)) {
+                              change(
+                                tool == DrawTool.move
+                                    ? List.of(draft)
+                                    : closeRing(
+                                        simplify(
+                                          draft,
+                                          toleranceKm: span * 0.035,
+                                        ),
+                                      ),
+                              );
+                            }
+                            setState(() => draft = []);
+                          },
+                          child: RepaintBoundary(
+                            child: CustomPaint(
+                              size: size,
+                              painter: _MapPainter(
+                                land: widget.land,
+                                center: center,
+                                span: span,
+                                points: draft.isEmpty ? widget.points : draft,
+                                type: widget.type,
+                                target: widget.target,
+                                borders: widget.config.borders,
+                                dark:
+                                    Theme.of(context).brightness ==
+                                    Brightness.dark,
+                              ),
                             ),
                           ),
                         ),
@@ -384,6 +551,8 @@ class _MapCanvasState extends State<MapCanvas> {
     );
   }
 }
+
+final _landPaths = Expando<Path>('offline land paths');
 
 class _MapPainter extends CustomPainter {
   final List<List<GeoPoint>> land;
@@ -434,13 +603,28 @@ class _MapPainter extends CustomPainter {
     final border = Paint()
       ..color = dark ? const Color(0xff9bb4ad) : const Color(0xff829b94)
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
+      ..strokeWidth = 1 / sx;
+    final viewport = Rect.fromLTRB(
+      center.lon - span / 2,
+      center.lat - size.height / (2 * sy),
+      center.lon + span / 2,
+      center.lat + size.height / (2 * sy),
+    );
+    canvas.save();
+    canvas.translate(size.width / 2, size.height / 2);
+    canvas.scale(sx, -sy);
+    canvas.translate(-center.lon, -center.lat);
     for (final ring in land) {
-      final p = path(ring, close: true);
-      if (!p.getBounds().overlaps(Offset.zero & size)) continue;
+      final p = _landPaths[ring] ??= (Path()
+        ..addPolygon(
+          ring.map((point) => Offset(point.lon, point.lat)).toList(),
+          true,
+        ));
+      if (!p.getBounds().overlaps(viewport)) continue;
       canvas.drawPath(p, fill);
       if (borders) canvas.drawPath(p, border);
     }
+    canvas.restore();
     void geometry(
       List<GeoPoint> coords,
       AnswerType kind,

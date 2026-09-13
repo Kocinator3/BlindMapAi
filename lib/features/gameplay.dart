@@ -38,6 +38,28 @@ class _GameplayPageState extends State<GameplayPage> {
   Timer? timer;
   String tr(String cs, String en) => widget.store.language == 'cs' ? cs : en;
   Question get question => widget.level.questions[index];
+  String get interactionHint => switch (question.answerType) {
+    AnswerType.point => tr(
+      'Klikni do mapy a označ místo. Tažením mapu posuneš.',
+      'Click the map to mark a place. Drag to pan.',
+    ),
+    AnswerType.polyline => tr(
+      'Klikáním přidej vrcholy linie. Tažením mapu posuneš.',
+      'Click to add line vertices. Drag to pan.',
+    ),
+    AnswerType.freehandArea || AnswerType.circle => tr(
+      'Zakresli oblast tažením po mapě. Space + tažení mapu posune.',
+      'Draw the area by dragging. Space + drag pans the map.',
+    ),
+    AnswerType.polygon => tr(
+      'Klikáním obkresli oblast. Tažením mapu posuneš.',
+      'Click to outline the area. Drag to pan.',
+    ),
+    AnswerType.multiPoint => tr(
+      'Kliknutím označ všechna místa. Tažením mapu posuneš.',
+      'Click to mark all places. Drag to pan.',
+    ),
+  };
   @override
   void initState() {
     super.initState();
@@ -195,6 +217,13 @@ class _GameplayPageState extends State<GameplayPage> {
                 question.prompt,
                 style: Theme.of(context).textTheme.titleLarge,
               ),
+              Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: 4),
+                child: Text(
+                  interactionHint,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
               if (result == null && question.hints.isNotEmpty)
                 Align(
                   alignment: Alignment.centerLeft,
@@ -225,6 +254,7 @@ class _GameplayPageState extends State<GameplayPage> {
                   onChanged: (p) => setState(() => points = p),
                   target: result == null ? null : question.geometry,
                   readOnly: result != null,
+                  showTools: question.answerType != AnswerType.point,
                 ),
               ),
               if (error != null)
