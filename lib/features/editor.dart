@@ -10,6 +10,7 @@ import '../domain/geo.dart';
 import '../domain/level.dart';
 import '../map/map_canvas.dart';
 import 'gameplay.dart';
+import 'unsaved_guard.dart';
 
 Future<Level?> showJsonEditor(
   BuildContext context,
@@ -117,12 +118,17 @@ class _JsonPageState extends State<_JsonPage> {
                 onPressed: () => run(() async {
                   final level = LevelCodec().decode(text.text);
                   if (Platform.isAndroid) {
-                    throw LevelValidationException(
-                      tr(
-                        'Na Androidu použij Kopírovat a ulož JSON do souboru v jiné aplikaci.',
-                        'On Android, copy JSON and save it using a file application.',
-                      ),
-                    );
+                    final saved =
+                        await const MethodChannel('org.slepamapa/files')
+                            .invokeMethod<bool>('exportJson', {
+                              'content': level.encode(),
+                            });
+                    if (mounted && saved == true) {
+                      setState(
+                        () => message = tr('Soubor uložen.', 'File saved.'),
+                      );
+                    }
+                    return;
                   }
                   final location = await getSaveLocation(
                     suggestedName: 'level.json',
@@ -203,6 +209,7 @@ class _LevelEditorState extends State<LevelEditor> {
   late MapConfig map = widget.level?.map ?? const MapConfig();
   late String language = widget.level?.language ?? 'cs';
   late bool unverified = widget.level?.unverified ?? false;
+  bool saved = false;
   String? error;
   bool saving = false;
   String tr(String cs, String en) => widget.store.language == 'cs' ? cs : en;
@@ -246,193 +253,202 @@ class _LevelEditorState extends State<LevelEditor> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text(tr('Editor úrovně', 'Level editor')),
-      actions: [
-        TextButton(
-          onPressed: () async {
-            final level = await showJsonEditor(
-              context,
-              value(),
-              czech: widget.store.language == 'cs',
-            );
-            if (level != null && mounted) {
-              setState(() {
-                title.text = level.title;
-                description.text = level.description;
-                questions = List.of(level.questions);
-                map = level.map;
-                language = level.language;
-                unverified = level.unverified;
-              });
-            }
-          },
-          child: const Text('JSON'),
-        ),
-      ],
-    ),
-    body: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 900),
-        child: ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            TextField(
-              controller: title,
-              decoration: InputDecoration(
-                labelText: tr('Název úrovně', 'Level title'),
-                border: const OutlineInputBorder(),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: description,
-              maxLines: 2,
-              decoration: InputDecoration(
-                labelText: tr('Popis', 'Description'),
-                border: const OutlineInputBorder(),
-              ),
-            ),
-            ListTile(
-              title: Text(tr('Jazyk obsahu', 'Content language')),
-              trailing: DropdownButton<String>(
-                value: ['cs', 'en'].contains(language) ? language : 'cs',
-                items: const [
-                  DropdownMenuItem(value: 'cs', child: Text('Čeština')),
-                  DropdownMenuItem(value: 'en', child: Text('English')),
-                ],
-                onChanged: (v) => setState(() => language = v!),
-              ),
-            ),
-            SwitchListTile(
-              title: Text(
-                tr('Geografie čeká na ověření', 'Geography requires review'),
-              ),
-              value: unverified,
-              onChanged: (v) => setState(() => unverified = v),
-            ),
-            ListTile(
-              title: Text(tr('Výchozí mapa', 'Initial map')),
-              trailing: DropdownButton<double>(
-                value: map.span == 55 ? 55 : 9,
-                items: [
-                  DropdownMenuItem(
-                    value: 9,
-                    child: Text(tr('Česko', 'Czechia')),
-                  ),
-                  DropdownMenuItem(
-                    value: 55,
-                    child: Text(tr('Evropa', 'Europe')),
-                  ),
-                ],
-                onChanged: (v) => setState(
-                  () => map = MapConfig(
-                    center: v == 55
-                        ? const GeoPoint(12, 50)
-                        : const GeoPoint(15.5, 49.8),
-                    span: v!,
-                  ),
+  Widget build(BuildContext context) => UnsavedGuard(
+    czech: widget.store.language == 'cs',
+    dirty: () => !saved && (title.text.isNotEmpty || questions.isNotEmpty),
+    child: Scaffold(
+      appBar: AppBar(
+        title: Text(tr('Editor úrovně', 'Level editor')),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              final level = await showJsonEditor(
+                context,
+                value(),
+                czech: widget.store.language == 'cs',
+              );
+              if (level != null && mounted) {
+                setState(() {
+                  title.text = level.title;
+                  description.text = level.description;
+                  questions = List.of(level.questions);
+                  map = level.map;
+                  language = level.language;
+                  unverified = level.unverified;
+                });
+              }
+            },
+            child: const Text('JSON'),
+          ),
+        ],
+      ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 900),
+          child: ListView(
+            padding: const EdgeInsets.all(24),
+            children: [
+              TextField(
+                controller: title,
+                decoration: InputDecoration(
+                  labelText: tr('Název úrovně', 'Level title'),
+                  border: const OutlineInputBorder(),
                 ),
               ),
-            ),
-            const Divider(),
-            for (var i = 0; i < questions.length; i++)
-              Card(
-                child: ListTile(
-                  title: Text(questions[i].prompt),
-                  subtitle: Text(questions[i].answerType.name),
-                  onTap: () => question(i),
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      IconButton(
-                        tooltip: tr('Kopie otázky', 'Duplicate question'),
-                        icon: const Icon(Icons.copy),
-                        onPressed: () => setState(() {
-                          final json = questions[i].toJson();
-                          json['id'] =
-                              'q-${DateTime.now().microsecondsSinceEpoch}';
-                          questions.add(
-                            LevelCodec()
-                                .fromJson({
-                                  ...value().toJson(),
-                                  'questions': [json],
-                                })
-                                .questions
-                                .first,
-                          );
-                        }),
-                      ),
-                      IconButton(
-                        tooltip: tr('Smazat otázku', 'Delete question'),
-                        onPressed: () => setState(() => questions.removeAt(i)),
-                        icon: const Icon(Icons.delete_outline),
-                      ),
-                    ],
-                  ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: description,
+                maxLines: 2,
+                decoration: InputDecoration(
+                  labelText: tr('Popis', 'Description'),
+                  border: const OutlineInputBorder(),
                 ),
               ),
-            OutlinedButton.icon(
-              onPressed: () => question(),
-              icon: const Icon(Icons.add_location_alt_outlined),
-              label: Text(tr('Přidat otázku', 'Add question')),
-            ),
-            if (error != null)
-              SelectableText(
-                error!,
-                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ListTile(
+                title: Text(tr('Jazyk obsahu', 'Content language')),
+                trailing: DropdownButton<String>(
+                  value: ['cs', 'en'].contains(language) ? language : 'cs',
+                  items: const [
+                    DropdownMenuItem(value: 'cs', child: Text('Čeština')),
+                    DropdownMenuItem(value: 'en', child: Text('English')),
+                  ],
+                  onChanged: (v) => setState(() => language = v!),
+                ),
               ),
-            const SizedBox(height: 16),
-            FilledButton.icon(
-              onPressed: saving
-                  ? null
-                  : () async {
-                      setState(() => saving = true);
-                      try {
-                        await widget.store.put(
-                          LevelCodec().decode(value().encode()),
-                        );
-                        if (context.mounted) Navigator.pop(context);
-                      } catch (e) {
-                        if (mounted) setState(() => error = e.toString());
-                      } finally {
-                        if (mounted) setState(() => saving = false);
-                      }
-                    },
-              icon: const Icon(Icons.save_outlined),
-              label: Text(tr('Uložit úroveň', 'Save level')),
-            ),
-            TextButton(
-              onPressed: () async {
-                try {
-                  final level = LevelCodec().decode(value().encode());
-                  await Navigator.push(
-                    context,
-                    MaterialPageRoute<void>(
-                      builder: (_) => GameplayPage(
-                        level: level,
-                        store: widget.store,
-                        land: widget.land,
-                        preview: true,
-                      ),
+              SwitchListTile(
+                title: Text(
+                  tr('Geografie čeká na ověření', 'Geography requires review'),
+                ),
+                value: unverified,
+                onChanged: (v) => setState(() => unverified = v),
+              ),
+              ListTile(
+                title: Text(tr('Výchozí mapa', 'Initial map')),
+                trailing: DropdownButton<double>(
+                  value: map.span == 55 ? 55 : 9,
+                  items: [
+                    DropdownMenuItem(
+                      value: 9,
+                      child: Text(tr('Česko', 'Czechia')),
                     ),
-                  );
-                } catch (e) {
-                  setState(() => error = e.toString());
-                }
-              },
-              child: Text(tr('Náhled úrovně', 'Preview level')),
-            ),
-            if (widget.level != null)
-              TextButton(
-                onPressed: () => setState(() {
-                  id = 'level-${DateTime.now().microsecondsSinceEpoch}';
-                  title.text = '${title.text} (${tr('kopie', 'copy')})';
-                }),
-                child: Text(tr('Uložit jako kopii', 'Save as duplicate')),
+                    DropdownMenuItem(
+                      value: 55,
+                      child: Text(tr('Evropa', 'Europe')),
+                    ),
+                  ],
+                  onChanged: (v) => setState(
+                    () => map = MapConfig(
+                      center: v == 55
+                          ? const GeoPoint(12, 50)
+                          : const GeoPoint(15.5, 49.8),
+                      span: v!,
+                    ),
+                  ),
+                ),
               ),
-          ],
+              const Divider(),
+              for (var i = 0; i < questions.length; i++)
+                Card(
+                  child: ListTile(
+                    title: Text(questions[i].prompt),
+                    subtitle: Text(questions[i].answerType.name),
+                    onTap: () => question(i),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          tooltip: tr('Kopie otázky', 'Duplicate question'),
+                          icon: const Icon(Icons.copy),
+                          onPressed: () => setState(() {
+                            final json = questions[i].toJson();
+                            json['id'] =
+                                'q-${DateTime.now().microsecondsSinceEpoch}';
+                            questions.add(
+                              LevelCodec()
+                                  .fromJson({
+                                    ...value().toJson(),
+                                    'questions': [json],
+                                  })
+                                  .questions
+                                  .first,
+                            );
+                          }),
+                        ),
+                        IconButton(
+                          tooltip: tr('Smazat otázku', 'Delete question'),
+                          onPressed: () =>
+                              setState(() => questions.removeAt(i)),
+                          icon: const Icon(Icons.delete_outline),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              OutlinedButton.icon(
+                onPressed: () => question(),
+                icon: const Icon(Icons.add_location_alt_outlined),
+                label: Text(tr('Přidat otázku', 'Add question')),
+              ),
+              if (error != null)
+                SelectableText(
+                  error!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: saving
+                    ? null
+                    : () async {
+                        setState(() => saving = true);
+                        try {
+                          await widget.store.put(
+                            LevelCodec().decode(value().encode()),
+                          );
+                          if (context.mounted) {
+                            setState(() => saved = true);
+                            await WidgetsBinding.instance.endOfFrame;
+                            if (context.mounted) Navigator.pop(context);
+                          }
+                        } catch (e) {
+                          if (mounted) setState(() => error = e.toString());
+                        } finally {
+                          if (mounted) setState(() => saving = false);
+                        }
+                      },
+                icon: const Icon(Icons.save_outlined),
+                label: Text(tr('Uložit úroveň', 'Save level')),
+              ),
+              TextButton(
+                onPressed: () async {
+                  try {
+                    final level = LevelCodec().decode(value().encode());
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => GameplayPage(
+                          level: level,
+                          store: widget.store,
+                          land: widget.land,
+                          preview: true,
+                        ),
+                      ),
+                    );
+                  } catch (e) {
+                    setState(() => error = e.toString());
+                  }
+                },
+                child: Text(tr('Náhled úrovně', 'Preview level')),
+              ),
+              if (widget.level != null)
+                TextButton(
+                  onPressed: () => setState(() {
+                    id = 'level-${DateTime.now().microsecondsSinceEpoch}';
+                    title.text = '${title.text} (${tr('kopie', 'copy')})';
+                  }),
+                  child: Text(tr('Uložit jako kopii', 'Save as duplicate')),
+                ),
+            ],
+          ),
         ),
       ),
     ),
@@ -469,10 +485,27 @@ class _QuestionEditorState extends State<QuestionEditor> {
     text: widget.question?.category ?? 'geography',
   );
   late AnswerType type = widget.question?.answerType ?? AnswerType.point;
-  late List<GeoPoint> points = List.of(
-    widget.question?.geometry.parts.first ?? [],
-  );
+  late List<GeoPoint> points = _editablePoints();
+  List<GeoPoint> _editablePoints() {
+    final result = List<GeoPoint>.of(
+      widget.question?.geometry.parts.first ?? [],
+    );
+    if (widget.question?.geometry.type == 'Polygon' &&
+        result.length > 1 &&
+        distanceKm(result.first, result.last) < 0.000001) {
+      result.removeLast();
+    }
+    return result;
+  }
+
+  late final otherParts =
+      widget.question?.geometry.parts
+          .skip(1)
+          .map((p) => List<GeoPoint>.of(p))
+          .toList() ??
+      <List<GeoPoint>>[];
   late double tolerance = widget.question?.toleranceKm ?? 30;
+  bool applied = false;
   String? error;
   String tr(String cs, String en) => widget.store.language == 'cs' ? cs : en;
   @override
@@ -497,16 +530,22 @@ class _QuestionEditorState extends State<QuestionEditor> {
       geometry: Geometry(
         switch (type) {
           AnswerType.point => 'Point',
-          AnswerType.polyline => 'LineString',
+          AnswerType.polyline =>
+            otherParts.isEmpty ? 'LineString' : 'MultiLineString',
           AnswerType.multiPoint => 'MultiPoint',
           _ => 'Polygon',
         },
-        [isArea ? closeRing(points) : points],
+        [
+          isArea ? closeRing(points) : points,
+          if (type == AnswerType.polyline) ...otherParts,
+        ],
       ),
       explanation: explanation.text,
       category: category.text,
       hints: hints.text.split('\n').where((s) => s.trim().isNotEmpty).toList(),
       toleranceKm: tolerance,
+      difficulty: widget.question?.difficulty ?? 'beginner',
+      tags: widget.question?.tags ?? const [],
     );
     return LevelCodec()
         .decode(Level(id: 'preview', title: 'Preview', questions: [q]).encode())
@@ -539,8 +578,16 @@ class _QuestionEditorState extends State<QuestionEditor> {
           onChanged: (v) => setState(() {
             type = v!;
             points = [];
+            otherParts.clear();
           }),
         ),
+        if (otherParts.isNotEmpty)
+          Text(
+            tr(
+              'Vícedílná linie: upravuješ první část; ostatní části zůstanou zachovány. Pro úpravu dalších částí použij JSON.',
+              'Multipart line: editing the first part; other parts are preserved. Use JSON to edit other parts.',
+            ),
+          ),
         TextField(
           controller: category,
           decoration: InputDecoration(labelText: tr('Kategorie', 'Category')),
@@ -585,9 +632,12 @@ class _QuestionEditorState extends State<QuestionEditor> {
           ),
         const SizedBox(height: 12),
         FilledButton(
-          onPressed: () {
+          onPressed: () async {
             try {
-              Navigator.pop(context, value());
+              final question = value();
+              setState(() => applied = true);
+              await WidgetsBinding.instance.endOfFrame;
+              if (context.mounted) Navigator.pop(context, question);
             } catch (e) {
               setState(() => error = e.toString());
             }
@@ -631,33 +681,37 @@ class _QuestionEditorState extends State<QuestionEditor> {
       czech: widget.store.language == 'cs',
       onChanged: (p) => setState(() => points = p),
     );
-    return Scaffold(
-      appBar: AppBar(title: Text(tr('Editor otázky', 'Question editor'))),
-      body: SafeArea(
-        child: LayoutBuilder(
-          builder: (context, c) => c.maxWidth >= 850
-              ? Row(
-                  children: [
-                    SizedBox(width: 320, child: properties),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: map,
+    return UnsavedGuard(
+      czech: widget.store.language == 'cs',
+      dirty: () => !applied && (prompt.text.isNotEmpty || points.isNotEmpty),
+      child: Scaffold(
+        appBar: AppBar(title: Text(tr('Editor otázky', 'Question editor'))),
+        body: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, c) => c.maxWidth >= 850
+                ? Row(
+                    children: [
+                      SizedBox(width: 320, child: properties),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: map,
+                        ),
                       ),
-                    ),
-                  ],
-                )
-              : Column(
-                  children: [
-                    SizedBox(height: c.maxHeight * 0.38, child: properties),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.all(8),
-                        child: map,
+                    ],
+                  )
+                : Column(
+                    children: [
+                      SizedBox(height: c.maxHeight * 0.38, child: properties),
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: map,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+          ),
         ),
       ),
     );

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'data/store.dart';
@@ -8,6 +10,14 @@ import 'domain/geo.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks([
+      'SlepáMapa',
+    ], await rootBundle.loadString('LICENSE'));
+    yield LicenseEntryWithLineBreaks([
+      'Natural Earth geographic data',
+    ], await rootBundle.loadString('docs/DATA_SOURCES.md'));
+  });
   try {
     final store = await AppStore.open();
     final land = await MapCanvas.loadLand();

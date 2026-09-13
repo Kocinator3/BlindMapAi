@@ -8,6 +8,8 @@ def q(id,prompt,kind,coords,explanation,tolerance=30):
     return dict(id=id,prompt=prompt,answerType=kind,geometry=dict(type=geometry_type,coordinates=coords),explanation=explanation,scoring=dict(toleranceKm=tolerance),hints=[],tags=[])
 def level(id,title,questions,center=[15.5,49.8],span=9,unverified=False):
     value=dict(schemaVersion=1,id=id,title=title,description='Offline výuková sada / Offline teaching pack',language='cs',difficulty='beginner',tags=[],unverified=unverified,map=dict(center=center,longitudeSpan=span,showCountryBorders=True),questions=questions)
+    if Path(f'assets/levels/{id}.json').exists():
+        return  # Never overwrite curated source-derived packs.
     Path(f'assets/levels/{id}.json').write_text(json.dumps(value,ensure_ascii=False,indent=2)+'\n')
 level('czech-cities','Česká města',[
  q('praha','Kde leží Praha?','point',[14.4378,50.0755],'Praha leží na Vltavě ve středních Čechách. / Prague lies on the Vltava in central Bohemia.'),

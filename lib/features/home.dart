@@ -116,11 +116,14 @@ class _HomePageState extends State<HomePage> {
                       child: Text(tr('Upravit / kopie', 'Edit / copy')),
                     ),
                     TextButton(
-                      onPressed: () => showJsonEditor(
-                        context,
-                        level,
-                        czech: widget.store.language == 'cs',
-                      ),
+                      onPressed: () async {
+                        final updated = await showJsonEditor(
+                          context,
+                          level,
+                          czech: widget.store.language == 'cs',
+                        );
+                        if (updated != null && mounted) await edit(updated);
+                      },
                       child: Text('JSON'),
                     ),
                     if (widget.store.custom.contains(level))

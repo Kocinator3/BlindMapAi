@@ -17,7 +17,8 @@ class Geometry {
     return {
       'type': type,
       'coordinates': switch (type) {
-        'Point' => lists.first.first,
+        'Point' =>
+          lists.isEmpty || lists.first.isEmpty ? <double>[] : lists.first.first,
         'LineString' || 'MultiPoint' => lists.first,
         _ => lists,
       },
@@ -120,6 +121,16 @@ class LevelCodec {
   static const maxVertices = 500;
   Never fail(String path, String reason) =>
       throw LevelValidationException('$path: $reason');
+  void keys(Map<String, dynamic> value, List<String> allowed, String path) {
+    final unknown = value.keys.where((key) => !allowed.contains(key));
+    if (unknown.isNotEmpty) {
+      fail(
+        path,
+        'Unsupported properties: ${unknown.join(', ')}. Check schema v1.',
+      );
+    }
+  }
+
   Map<String, dynamic> object(dynamic value, String path) {
     if (value is! Map<String, dynamic>) fail(path, 'Expected a JSON object.');
     return value;
@@ -164,7 +175,8 @@ class LevelCodec {
     final version = json['schemaVersion'];
     if (version == 0) {
       // Legacy prototype named its title "name"; coordinate order was already GeoJSON.
-      return {...json, 'schemaVersion': 1, 'title': json['name']};
+      return {...json, 'schemaVersion': 1, 'title': json['name']}
+        ..remove('name');
     }
     if (version != 1) {
       fail('schemaVersion', 'Unsupported version $version. Supported: 0, 1.');
@@ -204,6 +216,18 @@ class LevelCodec {
 
   Level fromJson(Map<String, dynamic> input) {
     final json = migrate(input);
+    keys(json, [
+      'schemaVersion',
+      'id',
+      'title',
+      'description',
+      'language',
+      'difficulty',
+      'tags',
+      'unverified',
+      'map',
+      'questions',
+    ], 'Level');
     final rawQuestions = json['questions'];
     if (rawQuestions is! List ||
         rawQuestions.isEmpty ||
@@ -214,6 +238,18 @@ class LevelCodec {
     final questions = <Question>[];
     for (var i = 0; i < rawQuestions.length; i++) {
       final q = object(rawQuestions[i], 'questions[$i]');
+      keys(q, [
+        'id',
+        'prompt',
+        'answerType',
+        'category',
+        'geometry',
+        'explanation',
+        'hints',
+        'tags',
+        'difficulty',
+        'scoring',
+      ], 'questions[$i]');
       final id = string(q['id'], 'questions[$i].id');
       final path = 'Question "$id"';
       if (!ids.add(id)) fail(path, 'Duplicate question ID.');
@@ -222,6 +258,7 @@ class LevelCodec {
       if (types.isEmpty) fail(path, 'Unknown answerType "$typeName".');
       final type = types.first;
       final g = object(q['geometry'], '$path.geometry');
+      keys(g, ['type', 'coordinates'], '$path.geometry');
       final expected = switch (type) {
         AnswerType.point => ['Point'],
         AnswerType.polyline => ['LineString', 'MultiLineString'],
@@ -270,6 +307,9 @@ class LevelCodec {
           for (var j = 0; j < part.length; j++)
             point(part[j], '$path.coordinates[$j]'),
         ];
+        if (g['type'] == 'MultiPoint' && points.length > 12) {
+          fail(path, 'MultiPoint supports at most 12 points.');
+        }
         if (g['type'] == 'Polygon') {
           if (points.length < 4 ||
               distanceKm(points.first, points.last) > 0.000001) {
@@ -277,6 +317,14 @@ class LevelCodec {
               path,
               'Polygon needs at least three vertices and a closing copy of the first vertex.',
             );
+          }
+          for (var vertex = 1; vertex < points.length; vertex++) {
+            if (distanceKm(points[vertex - 1], points[vertex]) < 0.000001) {
+              fail(
+                path,
+                'Polygon contains duplicate consecutive vertices. Remove the extra point.',
+              );
+            }
           }
           if (selfIntersects(points)) {
             fail(
@@ -314,6 +362,7 @@ class LevelCodec {
         q['scoring'] ?? <String, dynamic>{},
         '$path.scoring',
       );
+      keys(scoring, ['toleranceKm'], '$path.scoring');
       questions.add(
         Question(
           id: id,
@@ -345,6 +394,7 @@ class LevelCodec {
       );
     }
     final map = object(json['map'] ?? <String, dynamic>{}, 'map');
+    keys(map, ['center', 'longitudeSpan', 'showCountryBorders'], 'map');
     if (json['unverified'] != null && json['unverified'] is! bool) {
       fail('unverified', 'Expected a boolean.');
     }

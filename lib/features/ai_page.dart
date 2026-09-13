@@ -25,6 +25,11 @@ class _AiPageState extends State<AiPage> {
   late final model = TextEditingController(
     text: widget.store.provider['model'] as String? ?? '',
   );
+  late final name = TextEditingController(
+    text: widget.store.provider['name'] as String? ?? 'Compatible API',
+  );
+  late int timeout = widget.store.provider['timeout'] as int? ?? 60;
+  String contentLanguage = 'cs';
   final key = TextEditingController();
   final provider = CompatibleAiProvider();
   String? message;
@@ -39,12 +44,13 @@ class _AiPageState extends State<AiPage> {
     base.dispose();
     model.dispose();
     key.dispose();
+    name.dispose();
     super.dispose();
   }
 
   Future<String> prompt() async => AiPromptService().generate(
     concepts: concepts.text,
-    language: widget.store.language,
+    language: contentLanguage,
     schema: await rootBundle.loadString('docs/level.schema.json'),
   );
   Future<void> generate({bool test = false}) async {
@@ -58,11 +64,15 @@ class _AiPageState extends State<AiPage> {
         baseUrl: base.text.trim(),
         model: model.text.trim(),
         key: key.text,
+        name: name.text,
+        timeoutSeconds: timeout,
       );
       config.endpoint();
       widget.store.provider = {
         'baseUrl': config.baseUrl,
         'model': config.model,
+        'name': config.name,
+        'timeout': config.timeoutSeconds,
       };
       await widget.store.save();
       final response = await provider.generate(
@@ -137,6 +147,19 @@ class _AiPageState extends State<AiPage> {
                 border: const OutlineInputBorder(),
               ),
             ),
+            ListTile(
+              title: Text(
+                tr('Jazyk vytvořené úrovně', 'Generated content language'),
+              ),
+              trailing: DropdownButton<String>(
+                value: contentLanguage,
+                items: const [
+                  DropdownMenuItem(value: 'cs', child: Text('Čeština')),
+                  DropdownMenuItem(value: 'en', child: Text('English')),
+                ],
+                onChanged: (v) => setState(() => contentLanguage = v!),
+              ),
+            ),
             OutlinedButton.icon(
               onPressed: () async {
                 await Clipboard.setData(ClipboardData(text: await prompt()));
@@ -161,6 +184,23 @@ class _AiPageState extends State<AiPage> {
             Text(
               tr('Poskytovatel API', 'API provider'),
               style: Theme.of(context).textTheme.titleLarge,
+            ),
+            TextField(
+              controller: name,
+              decoration: InputDecoration(
+                labelText: tr('Název poskytovatele', 'Provider name'),
+              ),
+            ),
+            ListTile(
+              title: Text(tr('Časový limit', 'Timeout')),
+              trailing: DropdownButton<int>(
+                value: timeout,
+                items: [
+                  for (final seconds in [30, 60, 120, 180])
+                    DropdownMenuItem(value: seconds, child: Text('$seconds s')),
+                ],
+                onChanged: (v) => setState(() => timeout = v!),
+              ),
             ),
             TextField(
               controller: base,

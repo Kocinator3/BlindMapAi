@@ -8,3 +8,10 @@
 - Point score: exp(-(distance/tolerance)^1.35). Lines use 160 arc-length samples in each direction and harmonic precision/coverage. Areas use local equirectangular projection and 100x100 target-bbox sampling, analytic attempt area, sqrt(IoU). This is regional educational approximation, not survey precision.
 - Compatible provider uses dart:io HttpClient, HTTPS except loopback, no redirects, 2 MiB cap and bounded timeout. API keys are never persisted; optional vault storage is future work.
 - CI builds artifacts on native runners and tags, but does not publish releases or modify remotes.
+- Recovery audit: validate the complete saved-state structure before copying primary to backup; JSON syntax alone was insufficient. Regression test confirms a semantically corrupt primary cannot overwrite a good backup.
+- Multipart editor audit: preserve all untouched line parts and question tags/difficulty; warn that only the first part is visually editable. Normalize polygon closing vertices to one editable handle.
+- UX audit: guard text-only drafts on back navigation, handle JSON Apply on the level-list route, compact map tools on mobile.
+- Performance audit: cache geographic country paths and transform the canvas, rather than rebuilding all projected vertices during every drawing update.
+- Android document export uses ACTION_CREATE_DOCUMENT with no storage permission; writes on a background thread. API reference: https://developer.android.com/training/data-storage/shared/documents-files . HTTPS remains default; loopback cleartext is explicitly configured for local models.
+- Canonical schema rejects unknown properties to prevent silent loss of unsupported authoring settings. Formal schema also constrains answerType/geometry combinations; domain validation adds closed-ring, crossing, extent and aggregate-vertex checks.
+- Release builds and integration tests must run sequentially: concurrent invocations caused a generated Android plugin registrant conflict. CI Linux output is tarred before upload to preserve executable permissions.

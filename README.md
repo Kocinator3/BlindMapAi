@@ -19,6 +19,8 @@ Build and package:
 
 ```bash
 ./scripts/package_linux.sh
+# If Flutter is not on PATH:
+FLUTTER_BIN=/path/to/flutter/bin/flutter ./scripts/package_linux.sh
 ```
 
 Extract the entire `dist/slepamapa-linux-x64.tar.gz` archive and run `./slepa_mapa`. Keep its `lib` and `data` directories beside the executable. Requires a compatible Linux desktop with GTK 3. This is a tar bundle, not a self-contained AppImage.
@@ -45,7 +47,7 @@ Distribute all of `build/windows/x64/runner/Release/`, including `slepa_mapa.exe
 ## Play and author
 Choose a pack and mode. Switch to Navigate to pan or zoom, then Draw to answer. Tap for points/polygon vertices; drag for rivers, freehand areas and circles. Confirm reveals the reference (orange squares) beside your attempt (blue circles). Ctrl+Z undoes, Ctrl+Y or Ctrl+Shift+Z redoes, Escape switches to navigation, Delete clears.
 
-My Levels → Create level → Add question opens the visual map editor. Preview plays without changing progress. Save validates geometry. JSON provides import, clipboard exchange and desktop file export. Content language is separate from the UI language.
+My Levels → Create level → Add question opens the visual map editor. Preview plays without changing progress. Save validates geometry. JSON provides import, clipboard exchange, desktop file export and Android document export. Content language is separate from the UI language.
 
 AI is optional. Copy prompt works without a connection. API generation sends concepts and the schema only when requested. Use an HTTPS compatible `/v1` base URL, or an HTTP loopback endpoint for a local model. Keys live only in memory for the open settings page. Responses are bounded, parsed, validated and marked unverified before review.
 

@@ -42,4 +42,24 @@ void main() {
     expect(find.text('Tmavý režim'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('text-only drafts require explicit discard on back', (
+    tester,
+  ) async {
+    final store = AppStore();
+    await tester.runAsync(store.load);
+    store.language = 'en';
+    await tester.pumpWidget(SlepaMapa(store: store, land: const []));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('My levels'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create level'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'Unsaved draft');
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.text('Discard unsaved changes?'), findsOneWidget);
+    await tester.tap(find.text('Keep editing'));
+    await tester.pumpAndSettle();
+    expect(find.text('Unsaved draft'), findsOneWidget);
+  });
 }

@@ -52,11 +52,13 @@ jobs:
       - run: flutter build ${{ matrix.target }} --release
       - if: matrix.target == 'linux'
         run: xvfb-run -a flutter test integration_test -d linux
+      - if: matrix.target == 'linux'
+        run: mkdir -p dist && tar -C build/linux/x64/release/bundle -czf dist/slepamapa-linux-x64.tar.gz .
       - uses: actions/upload-artifact@v4
         with:
-          name: slepamapa-${{ matrix.target }}-${{ github.ref_name }}
+          name: slepamapa-${{ matrix.target }}-${{ github.sha }}
           path: |
             build/app/outputs/flutter-apk/*.apk
-            build/linux/x64/release/bundle/
+            dist/*.tar.gz
             build/windows/x64/runner/Release/
           if-no-files-found: error

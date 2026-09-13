@@ -133,6 +133,21 @@ class AppStore extends ChangeNotifier {
       }
       DateTime.parse(r['date'] as String);
     }
+    final restoredProvider = Map<String, dynamic>.from(
+      value['provider'] as Map? ?? {},
+    );
+    restoredProvider.removeWhere(
+      (key, _) => !['baseUrl', 'model', 'name', 'timeout'].contains(key),
+    );
+    for (final key in ['baseUrl', 'model', 'name']) {
+      if (restoredProvider[key] != null && restoredProvider[key] is! String) {
+        throw const FormatException('Invalid provider settings');
+      }
+    }
+    if (restoredProvider['timeout'] != null &&
+        ![30, 60, 120, 180].contains(restoredProvider['timeout'])) {
+      throw const FormatException('Invalid provider timeout');
+    }
     custom
       ..clear()
       ..addAll(loaded);
@@ -141,7 +156,7 @@ class AppStore extends ChangeNotifier {
       ..addAll(records);
     language = value['language'] == 'en' ? 'en' : 'cs';
     dark = value['dark'] == true;
-    provider = Map<String, dynamic>.from(value['provider'] as Map? ?? {});
+    provider = restoredProvider;
   }
 
   Map<String, dynamic> snapshot() => {
@@ -150,7 +165,10 @@ class AppStore extends ChangeNotifier {
     'history': history,
     'language': language,
     'dark': dark,
-    'provider': provider,
+    'provider': {
+      for (final key in ['baseUrl', 'model', 'name', 'timeout'])
+        if (provider.containsKey(key)) key: provider[key],
+    },
   };
   Future<void> save() {
     final payload = jsonEncode(snapshot());
@@ -164,7 +182,7 @@ class AppStore extends ChangeNotifier {
         if (await file.exists()) {
           // Preserve unreadable primary files separately before replacing them.
           try {
-            jsonDecode(await file.readAsString());
+            AppStore()._restore(await file.readAsString());
             await file.copy(backup.path);
           } catch (_) {
             await file.copy(
@@ -224,6 +242,9 @@ class AppStore extends ChangeNotifier {
       (r) => r['session'] == session && r['question'] == question.id,
     )) {
       return;
+    }
+    if (points < 0 || points > 1000) {
+      throw ArgumentError.value(points, 'points', 'Expected 0–1000');
     }
     final result = <String, dynamic>{
       'session': session,

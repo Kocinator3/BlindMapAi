@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 0,
+  "id": "czech-cities",
+  "description": "Offline výuková sada / Offline teaching pack",
+  "language": "cs",
+  "difficulty": "beginner",
+  "tags": [],
+  "unverified": false,
+  "map": {
+    "center": [
+      15.5,
+      49.8
+    ],
+    "longitudeSpan": 9,
+    "showCountryBorders": true
+  },
+  "questions": [
+    {
+      "id": "praha",
+      "prompt": "Kde leží Praha?",
+      "answerType": "point",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          14.4378,
+          50.0755
+        ]
+      },
+      "explanation": "Praha leží na Vltavě ve středních Čechách. / Prague lies on the Vltava in central Bohemia.",
+      "scoring": {
+        "toleranceKm": 30
+      },
+      "hints": [],
+      "tags": []
+    }
+  ],
+  "name": "Česká města"
+}

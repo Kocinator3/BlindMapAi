@@ -89,14 +89,27 @@ bool insidePolygon(XY p, List<XY> ring) {
 }
 
 bool selfIntersects(List<GeoPoint> ring) {
-  double cross(GeoPoint a, GeoPoint b, GeoPoint c) =>
-      (b.lon - a.lon) * (c.lat - a.lat) - (b.lat - a.lat) * (c.lon - a.lon);
-  for (var i = 0; i < ring.length - 1; i++) {
-    for (var j = i + 2; j < ring.length - 1; j++) {
-      if (i == 0 && j == ring.length - 2) continue;
-      final a = ring[i], b = ring[i + 1], c = ring[j], d = ring[j + 1];
-      if (cross(a, b, c) * cross(a, b, d) < 0 &&
-          cross(c, d, a) * cross(c, d, b) < 0) {
+  if (ring.length < 4) return false;
+  final projection = LocalProjection(ring.first);
+  final points = ring.map(projection.project).toList();
+  double cross(XY a, XY b, XY c) =>
+      (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  bool onSegment(XY a, XY b, XY p) =>
+      cross(a, b, p).abs() < 1e-8 &&
+      p.x >= math.min(a.x, b.x) - 1e-8 &&
+      p.x <= math.max(a.x, b.x) + 1e-8 &&
+      p.y >= math.min(a.y, b.y) - 1e-8 &&
+      p.y <= math.max(a.y, b.y) + 1e-8;
+  for (var i = 0; i < points.length - 1; i++) {
+    for (var j = i + 2; j < points.length - 1; j++) {
+      if (i == 0 && j == points.length - 2) continue;
+      final a = points[i], b = points[i + 1], c = points[j], d = points[j + 1];
+      if ((cross(a, b, c) * cross(a, b, d) < 0 &&
+              cross(c, d, a) * cross(c, d, b) < 0) ||
+          onSegment(a, b, c) ||
+          onSegment(a, b, d) ||
+          onSegment(c, d, a) ||
+          onSegment(c, d, b)) {
         return true;
       }
     }

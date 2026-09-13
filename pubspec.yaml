@@ -23,3 +23,5 @@ flutter:
     - assets/maps/
     - assets/levels/
     - docs/level.schema.json
+    - docs/DATA_SOURCES.md
+    - LICENSE

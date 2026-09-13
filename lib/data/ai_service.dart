@@ -161,8 +161,13 @@ class CompatibleAiProvider implements AiProvider {
           }
           bytes.addAll(chunk);
         }
-        final envelope = jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>;
-        final content = envelope['choices']?[0]?['message']?['content'];
+        final envelope = jsonDecode(utf8.decode(bytes));
+        final choices = envelope is Map ? envelope['choices'] : null;
+        final first = choices is List && choices.isNotEmpty
+            ? choices.first
+            : null;
+        final message = first is Map ? first['message'] : null;
+        final content = message is Map ? message['content'] : null;
         if (content is! String) {
           throw const LevelValidationException(
             'Provider response has no choices[0].message.content text.',
