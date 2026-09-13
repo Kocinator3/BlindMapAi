@@ -14,6 +14,8 @@ Flutter shared UI for Android, Windows and Linux. Domain models, geometry scorin
 `MapCanvas` uses one `desktopDragThreshold` (6 logical pixels). Point/Polyline/MultiPoint clicks place geometry; movement past the threshold pans and suppresses placement. Polygon/freehand/circle Draw tools own area drags; vertex-move owns editing drags. Space+left or middle drag temporarily pans without emitting geometry. Device-kind dispatch separates mouse clicks from touch taps. Two touch pointers cancel the draft and latch navigation until every finger lifts. Scale end closes areas only, leaving river strokes open. Central cancellation resets gesture fields; type/config changes reset tool/history, and gameplay keys provide fresh state per question. Mouse wheel zoom remains independent. Native and widget regression evidence is recorded in REVIEW_2026-09-13.md.
 
 ## Save recovery
+Authored put/delete/record operations serialize mutation, persistence and rollback as one boundary. This prevents an earlier failed save from undoing a later edit; raw save calls additionally serialize filesystem work. Settings currently mutate public fields directly and are not transactional.
+
 Writes go to a flushed temporary file. A validated previous primary is copied to backup before replacement. Semantically invalid primary files are copied to timestamped recovery files and cannot replace a good backup. POSIX replacement is atomic; Windows requires deleting the primary before renaming, so the validated backup closes the recovery gap. Save errors propagate to the UI; authored-level mutations roll back in memory. Multiple save operations serialize their filesystem work.
 
 ## Geographic scope

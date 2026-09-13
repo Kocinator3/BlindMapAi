@@ -21,7 +21,10 @@ Git contains no explicit Astra/Luna attribution. Conservatively reviewed all cha
 Baseline: 34 tests passed, but new checks reproduced four failures. Interaction milestone: format clean, analyze clean, 45 tests and 3 Linux native integration flows pass. Native capture inspection additionally exposed the lost first stroke corner, now covered by geometry assertions. See REVIEW_2026-09-13.md.
 
 ## Next priority
-Audit concurrent mutation/save failures, then area-scoring edge cases. Desktop polygon click/move/delete regression is fixed and passes with the full 52-test suite and clean format/analyze. Authoring milestone is committed as `38f0fdc`. Preserve existing recovery validation, provider allowlist, multipart preservation and strict schema.
+Audit area-scoring edge cases. Desktop polygon click/move/delete follow-up is committed as `48108ce`; authoring milestone as `38f0fdc`. Preserve existing recovery validation, provider allowlist, multipart preservation and strict schema.
+
+## Persistence concurrency milestone
+Serialize authored put/delete/record mutations through persistence and rollback, not just filesystem writes. Four failing regressions reproduced rollback erasing a later put, resurrecting a deleted level, lost duplicate retries and cross-level record collisions. Five tests now cover those cases and durable reload after a failed write. Record identity includes level/session/question. Format/analyze clean; 57 tests and 3 Linux native flows pass. Direct public settings mutations are not transactional and remain a follow-up boundary.
 
 ## Authoring preservation milestone
 Complete draft snapshots protect level descriptions/settings, question details/geometry and JSON text. Unchanged imported seeds still require saving or explicit discard. Visual save and JSON Apply preserve level ID, tags and difficulty. Six regression tests cover loss reproduction, reversion, import guarding and canonical JSON-to-visual save. Format/analyze clean; 51 tests and 3 Linux native flows pass. Interaction milestone is committed as `0d45a8f`.

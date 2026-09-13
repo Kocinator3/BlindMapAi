@@ -17,6 +17,18 @@ class AppStore extends ChangeNotifier {
   String? warning;
   Map<String, dynamic> provider = {};
   Future<void> _pending = Future.value();
+  Future<void> _mutations = Future.value();
+
+  // Serialize the entire mutation, persistence and rollback boundary. Queuing
+  // only filesystem writes allows an earlier rollback to erase a later edit.
+  Future<void> _mutate(Future<void> Function() action) {
+    final operation = _mutations
+        .catchError((Object _) {})
+        .then((_) => action());
+    _mutations = operation;
+    return operation;
+  }
+
   List<Level> get levels => [...bundled, ...custom];
   int get xp => history.fold(0, (sum, r) => sum + (r['points'] as int) ~/ 10);
   int get playerLevel => 1 + xp ~/ 500;
@@ -199,7 +211,7 @@ class AppStore extends ChangeNotifier {
     return operation;
   }
 
-  Future<void> put(Level level) async {
+  Future<void> put(Level level) => _mutate(() async {
     LevelCodec().decode(level.encode());
     if (bundled.any((l) => l.id == level.id)) {
       throw const LevelValidationException(
@@ -217,9 +229,9 @@ class AppStore extends ChangeNotifier {
         ..addAll(previous);
       rethrow;
     }
-  }
+  });
 
-  Future<void> delete(Level level) async {
+  Future<void> delete(Level level) => _mutate(() async {
     final previous = List<Level>.of(custom);
     custom.removeWhere((l) => l.id == level.id);
     try {
@@ -230,16 +242,19 @@ class AppStore extends ChangeNotifier {
         ..addAll(previous);
       rethrow;
     }
-  }
+  });
 
   Future<void> record({
     required String session,
     required Level level,
     required Question question,
     required int points,
-  }) async {
+  }) => _mutate(() async {
     if (history.any(
-      (r) => r['session'] == session && r['question'] == question.id,
+      (r) =>
+          r['session'] == session &&
+          r['level'] == level.id &&
+          r['question'] == question.id,
     )) {
       return;
     }
@@ -260,7 +275,7 @@ class AppStore extends ChangeNotifier {
       history.remove(result);
       rethrow;
     }
-  }
+  });
 
   static Future<AppStore> open() async {
     final store = AppStore(directory: await getApplicationSupportDirectory());
