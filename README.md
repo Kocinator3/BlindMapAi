@@ -45,7 +45,7 @@ flutter build windows --release
 Distribute all of `build/windows/x64/runner/Release/`, including `slepa_mapa.exe`, DLLs and data. Windows binaries cannot be built by the Linux host.
 
 ## Play and author
-Choose a pack and mode. Switch to Navigate to pan or zoom, then Draw to answer. Tap for points/polygon vertices; drag for rivers, freehand areas and circles. Confirm reveals the reference (orange squares) beside your attempt (blue circles). Ctrl+Z undoes, Ctrl+Y or Ctrl+Shift+Z redoes, Escape switches to navigation, Delete clears.
+Choose a pack and mode. On desktop, click to place points or river vertices; drag beyond 6 logical pixels to pan. For polygon/freehand/circle answers, drag to draw an area; hold Space or the middle mouse button to pan temporarily. The wheel zooms. On touch devices, trace lines/areas with one finger and pan/zoom with two fingers. Polygon vertex clicks remain available for authoring. Confirm reveals the reference (orange squares) beside your attempt (blue circles). Ctrl+Z undoes, Ctrl+Y or Ctrl+Shift+Z redoes, Escape cancels back to Draw, and Delete clears.
 
 My Levels → Create level → Add question opens the visual map editor. Preview plays without changing progress. Save validates geometry. JSON provides import, clipboard exchange, desktop file export and Android document export. Content language is separate from the UI language.
 

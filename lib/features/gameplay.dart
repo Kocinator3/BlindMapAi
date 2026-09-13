@@ -38,23 +38,34 @@ class _GameplayPageState extends State<GameplayPage> {
   Timer? timer;
   String tr(String cs, String en) => widget.store.language == 'cs' ? cs : en;
   Question get question => widget.level.questions[index];
+  bool get touchPlatform =>
+      Theme.of(context).platform == TargetPlatform.android ||
+      Theme.of(context).platform == TargetPlatform.iOS;
   String get interactionHint => switch (question.answerType) {
     AnswerType.point => tr(
       'Klikni do mapy a označ místo. Tažením mapu posuneš.',
       'Click the map to mark a place. Drag to pan.',
     ),
-    AnswerType.polyline => tr(
-      'Klikáním přidej vrcholy linie. Tažením mapu posuneš.',
-      'Click to add line vertices. Drag to pan.',
-    ),
-    AnswerType.freehandArea || AnswerType.circle => tr(
-      'Zakresli oblast tažením po mapě. Space + tažení mapu posune.',
-      'Draw the area by dragging. Space + drag pans the map.',
-    ),
-    AnswerType.polygon => tr(
-      'Klikáním obkresli oblast. Tažením mapu posuneš.',
-      'Click to outline the area. Drag to pan.',
-    ),
+    AnswerType.polyline =>
+      touchPlatform
+          ? tr(
+              'Nakresli linii jedním prstem. Dvěma prsty mapu posuneš a přiblížíš.',
+              'Trace the line with one finger. Use two fingers to pan and zoom.',
+            )
+          : tr(
+              'Klikáním přidej vrcholy linie. Tažením mapu posuneš.',
+              'Click to add line vertices. Drag to pan.',
+            ),
+    AnswerType.polygon || AnswerType.freehandArea || AnswerType.circle =>
+      touchPlatform
+          ? tr(
+              'Zakresli oblast jedním prstem. Dvěma prsty mapu posuneš a přiblížíš.',
+              'Draw the area with one finger. Use two fingers to pan and zoom.',
+            )
+          : tr(
+              'Zakresli oblast tažením po mapě. Space + tažení mapu posune.',
+              'Draw the area by dragging. Space + drag pans the map.',
+            ),
     AnswerType.multiPoint => tr(
       'Kliknutím označ všechna místa. Tažením mapu posuneš.',
       'Click to mark all places. Drag to pan.',

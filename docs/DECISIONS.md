@@ -1,4 +1,5 @@
 # Decisions
+- 2026-09-13 senior review: retain the 6 px desktop threshold; derive area tracing from polygon/freehandArea/circle and selected tool; close only area strokes. Latch two-finger navigation until all fingers lift. Reset type-specific gesture/tool/history state; keyed gameplay instances distinguish questions. Escape cancels back to Draw so hidden navigation cannot trap Point gameplay. See REVIEW_2026-09-13.md.
 - 2026-09-13: Start with Flutter/Dart as requested; confirm available toolchain before selecting dependencies.
 - Core gameplay must be offline. Prefer bundled open vector geography over online tiles.
 - Serialize geographic coordinates exclusively as GeoJSON [longitude, latitude].

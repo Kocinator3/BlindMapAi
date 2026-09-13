@@ -171,7 +171,7 @@ void main() {
         center + const Offset(70, -40),
         center + const Offset(70, 40),
         center + const Offset(-70, 40),
-        start,
+        if (areaType != AnswerType.circle) start,
       ]) {
         await gesture.moveTo(point);
       }
@@ -179,7 +179,10 @@ void main() {
       await tester.pump();
       expect(changes, hasLength(1));
       expect(changes.single.length, greaterThanOrEqualTo(4));
-      expect(changes.single.first, changes.single.last);
+      expect(
+        distanceKm(changes.single.first, changes.single.last),
+        lessThan(0.000001),
+      );
     });
   }
 
@@ -277,6 +280,7 @@ void main() {
     final store = AppStore()..language = 'en';
     await tester.pumpWidget(
       MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.linux),
         home: GameplayPage(level: level, store: store, land: const []),
       ),
     );

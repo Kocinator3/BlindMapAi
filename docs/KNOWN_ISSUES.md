@@ -17,6 +17,8 @@ The repository is a working pre-release, not completion of every requested featu
 - Flutter and writable Android SDK live in /tmp and may be removed by system cleanup. Install them permanently for ongoing development.
 
 ## Resolved audits
+- Senior review: river traces remain open, polygon drags draw areas, two-finger gestures discard drafts until all fingers lift, and cancellation/type changes reset transient state. Tests cover actual pan/zoom and full question/mountain transitions.
+- Old project-memory Git/test-sandbox blockers were stale; the review started from a clean writable checkout and Linux native integration runs.
 - Semantically corrupt primary no longer replaces a valid backup; corrupt data preserved separately.
 - API settings serialize an explicit allowlist, excluding credentials even if accidentally added to the map.
 - Multipart edits preserve untouched parts and question tags/difficulty.

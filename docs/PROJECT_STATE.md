@@ -1,50 +1,30 @@
-## RESUME HERE
-Read `AGENTS.md` first, then continue the implementation toward the full requested release candidate. Flutter SDK is at /tmp/slepamapa-flutter (3.47.4); use that absolute path until installed permanently. Desktop map input now uses a 6 logical-pixel click-vs-drag threshold: clicks place/select, ordinary drags pan, freehand and vertex-move retain intentional drawing/editing drags, and Space+left/middle drag pans. Area gameplay is now derived from `freehandArea` and `circle` answer types, with closed polygon answers and type-specific hints. Next audits should remain low-risk until GPT-6 Astra resumes larger GIS/product work.
+# Project state — 2026-09-13 senior review
 
-## Implemented features
-- Flutter Android/Linux/Windows scaffolds; responsive home, levels, statistics, settings and light/dark Czech/English UI.
-- Bundled public-domain Natural Earth country polygons, no labels or online tiles.
-- Six answer types, geodesic point scoring, sampled bidirectional line scoring, regional area overlap and multipoint assignment.
-- Map navigation/drawing, vertex add/move/delete, circle/freehand, undo/redo and keyboard shortcuts.
-- Practice/learning/challenge flows, feedback, explanations, per-question results, local XP/highscores/streak and mistake review.
-- Validated immutable level models, v0→v1 migration, bounded JSON imports, four demo packs.
-- Visual level/question editor and preview; JSON formatting/validation/clipboard and desktop file exchange.
-- Optional copy-AI-prompt and compatible HTTP API authoring with cancellation, bounds, timeout and mandatory unverified review. Keys are session-only.
-- Local serialized save queue, flushed writes, backup and corrupt-file preservation.
-- Native CI jobs, setup/run/package scripts, MIT license and data provenance.
-- Desktop mouse click-vs-drag interaction with centralized threshold, cursor feedback, automatic panning and focused widget tests; mobile touch interaction remains on the existing scale gesture path.
-- Gameplay interaction now derives from answer type: point/polyline placement uses click-vs-drag panning, while freehand-area and circle questions use left-drag area drawing, Space+left or middle drag panning, closed polygon conversion, and dynamic instructions. Question transitions reset transient map gesture/drawing state through keyed map instances and widget updates.
+## Resume here
+Read AGENTS.md, this file, ROADMAP.md, KNOWN_ISSUES.md, Git status/diff and recent history. Flutter/Dart are at `/tmp/slepamapa-flutter/bin/` (not on PATH). This is a pre-release.
 
-## Build status
-Linux release rebuilt successfully after the area interaction fix: `build/linux/x64/release/bundle/slepa_mapa`.
-Android release APK built successfully: build/app/outputs/flutter-apk/app-release.apk (55.1 MB, development signing). Windows requires a Windows runner; CI has not run remotely.
-Latest Linux test artifact: `dist/slepamapa-linux-x64.tar.gz` (11 MB), containing the rebuilt GTK bundle and executable. The packaging script supports `FLUTTER_BIN=/path/to/flutter`; this session refreshed the archive directly because dependency refresh could not reach pub.dev.
+## Review scope and starting state
+The checkout was clean at `6cdd082`. Git is writable; loopback tests and Linux native integration work without permission workarounds. The prior memory's dirty-tree/sandbox claims were stale.
 
-## Last successful tests
-2026-09-13: dart format clean; flutter analyze: no issues; focused `flutter test test/drawing_test.dart test/domain_test.dart --no-pub` passed 30 tests, covering point/polyline/area gestures, Space-pan suppression, transitions, and bundled mountain geometry invariants. A subsequent full-suite attempt was blocked by the restricted sandbox (Flutter test server could not bind a loopback socket); dependency refresh also could not reach pub.dev. Earlier full suite had 28 passing tests and integration_test had 2 passing native flows.
+Git contains no explicit Astra/Luna attribution. Conservatively reviewed all changes after implementation baseline `aee5dfd`: `14ee40a`, `042a04c` and `6cdd082`, plus current map, gameplay, geometry, validation, scoring, persistence, authoring, AI, changed data/schema, platform export, CI, scripts and tests. See REVIEW_2026-09-13.md.
 
-## Blockers
-No product release blocker established yet. SDK is temporary. Sandbox needs elevated Flutter access for global caches. The focused mountain interaction fix is recorded in Git as `fix: derive mountain gameplay interaction from answer type`; broader release work remains uncommitted in the worktree. No ownership, mode, sudo, or destructive workaround was attempted.
+## Interaction milestone
+- Retained 6 px desktop click/drag threshold; removed shared cross-device click suppression.
+- Polygon/freehand/circle left-drag draws areas; Space/middle pan creates no geometry. Polygon vertex-click authoring remains available.
+- Two-finger input discards the draft and latches navigation until all fingers lift. River traces stay open; only area strokes close.
+- Type/viewport updates reset tool, draft, selection, mouse/touch gesture fields and history. Gameplay uses a fresh keyed map per question. Read-only transitions cancel input without resetting the viewport.
+- Cancellation, Clear and undo abandon active strokes. Closed-ring editing exposes unique vertex handles.
+- Mobile area/line hints explain one-finger drawing and two-finger navigation.
+- Regression tests check visible drafts, actual pan/zoom, pinch suppression, cancellation, tool/history reset, requested transitions and both bundled mountain questions through confirmation.
 
-## Current priority
-Keep low-risk quality work focused on desktop/mobile interaction polish, accessibility, localization, CI and documentation. Do not claim the complete release candidate; see KNOWN_ISSUES.md.
+## Validation
+Baseline: 34 tests passed, but new checks reproduced four failures. Interaction milestone: format clean, analyze clean, 45 tests and 3 Linux native integration flows pass. Native capture inspection additionally exposed the lost first stroke corner, now covered by geometry assertions. See REVIEW_2026-09-13.md.
 
-## Latest desktop interaction milestone
-Implemented and tested automatic desktop click-vs-drag behavior in `MapCanvas`: 6 px threshold, click placement/selection, continuous pan after threshold, release suppression, wheel zoom preservation, cursor feedback, freehand left-drag retention, Move-vertex drag retention, and Space+left/middle temporary pan. Fixed the area interaction branch so both `freehandArea` and `circle` questions draw closed areas, while temporary pan never creates answer geometry. Added transition tests for Point→Area, Area→Area, and Area→Point plus bundled Czech mountain data invariants. This milestone is committed as `fix: derive mountain gameplay interaction from answer type`.
+## Next priority
+Fix authored-content preservation: visual level save loses tags/difficulty; draft guards miss description-only/question-detail changes and JSON drafts. Then audit concurrent mutation/save failures and area-scoring edge cases. Preserve existing recovery validation, provider allowlist, multipart preservation and strict schema.
 
-## Exact uncommitted state
-`git status --short` reports modified release/application files plus the new root-level `AGENTS.md`, `android/app/src/main/res/xml/`, `integration_test/`, `lib/features/unsaved_guard.dart`, `test/ai_http_test.dart`, and `test/fixtures/`. `git diff --check` is clean. The focused mountain interaction files are committed; the remaining dirty files are the earlier release milestone and this persistent-instructions update.
+## Platform/release limits
+Only Linux is connected. Android/Windows runtime behavior remains unverified. Previous release artifacts predate this review; rebuild before distribution. Production Android signing, Windows builds, accessibility/localization and source-backed teaching geography remain open. The SDK in /tmp may be cleaned by the OS.
 
-When Git is writable, inspect and commit the current documentation update manually with:
-
-```bash
-git status --short
-git diff --check
-git add AGENTS.md docs/PROJECT_STATE.md
-git commit -m "docs: add persistent Codex project instructions"
-```
-
-The focused regression check currently passes: `flutter test test/drawing_test.dart test/domain_test.dart --no-pub` → 30 tests passed. A fresh full-suite run requires a less restricted Flutter test environment because this session cannot bind the test server socket.
-
-## Unfinished tasks
-See KNOWN_ISSUES.md and ROADMAP.md. First complete version criteria are NOT yet fully met. Do not call this a completed release.
+## Git workflow
+Commit focused verified milestones locally; do not push. If a future sandbox makes Git read-only, preserve all work and document exact manual git add/commit commands. No current Git permission blocker exists.

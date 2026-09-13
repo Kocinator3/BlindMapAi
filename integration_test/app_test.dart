@@ -4,16 +4,89 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:slepa_mapa/data/store.dart';
 import 'package:slepa_mapa/domain/level.dart';
 import 'package:slepa_mapa/features/editor.dart';
+import 'package:slepa_mapa/features/gameplay.dart';
 import 'package:slepa_mapa/main.dart';
 import 'package:slepa_mapa/map/map_canvas.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets('native mountain strokes, temporary pan and question reset', (
+    tester,
+  ) async {
+    final store = AppStore();
+    await store.load();
+    final level = store.bundled.firstWhere(
+      (level) => level.id == 'czech-mountains',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GameplayPage(
+          level: level,
+          store: store,
+          land: await MapCanvas.loadLand(),
+          preview: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    for (var i = 0; i < level.questions.length; i++) {
+      final map = find
+          .descendant(
+            of: find.byType(MapCanvas),
+            matching: find.byType(CustomPaint),
+          )
+          .last;
+      final center = tester.getCenter(map);
+      expect(tester.widget<MapCanvas>(find.byType(MapCanvas)).points, isEmpty);
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await tester.sendKeyDownEvent(LogicalKeyboardKey.space);
+      await gesture.down(center);
+      await gesture.moveTo(center + const Offset(50, 0));
+      await gesture.up();
+      await tester.sendKeyUpEvent(LogicalKeyboardKey.space);
+      await tester.pump();
+      expect(tester.widget<MapCanvas>(find.byType(MapCanvas)).points, isEmpty);
+      await gesture.down(center - const Offset(60, 40));
+      await gesture.moveTo(center + const Offset(60, -40));
+      await gesture.moveTo(center + const Offset(60, 40));
+      await gesture.moveTo(center + const Offset(-60, 40));
+      await gesture.up();
+      await tester.pump();
+      expect(
+        tester.widget<MapCanvas>(find.byType(MapCanvas)).points.length,
+        greaterThanOrEqualTo(4),
+      );
+      if (i == 0) {
+        final boundary = tester.renderObject<RenderRepaintBoundary>(
+          find
+              .descendant(
+                of: find.byType(MapCanvas),
+                matching: find.byType(RepaintBoundary),
+              )
+              .last,
+        );
+        final image = await boundary.toImage();
+        final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
+        await File('${Directory.systemTemp.path}/slepamapa-area-review.png')
+            .writeAsBytes(bytes!.buffer.asUint8List());
+        image.dispose();
+      }
+      await tester.tap(find.text('Potvrdit odpověď'));
+      await tester.pumpAndSettle();
+      expect(find.text('Pokračovat'), findsOneWidget);
+      await tester.tap(find.text('Pokračovat'));
+      await tester.pumpAndSettle();
+    }
+    expect(find.text('Výsledky'), findsOneWidget);
+    await tester.pumpWidget(const SizedBox());
+  });
   testWidgets('native launch, demo answer and durable reload', (tester) async {
     final directory = await Directory.systemTemp.createTemp(
       'slepamapa-integration-',

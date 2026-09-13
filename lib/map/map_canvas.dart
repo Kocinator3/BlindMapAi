@@ -72,7 +72,10 @@ class _MapCanvasState extends State<MapCanvas> {
   Offset? _mouseLast;
   bool _mousePanning = false;
   bool _mouseFreehand = false;
-  bool _mouseClickHandled = false;
+  final Set<int> _touchPointers = {};
+  Offset? _touchStart;
+  bool _touchNavigating = false;
+  bool _gestureActive = false;
   double fittedSpan(Size viewport) =>
       (widget.config.span *
               math.max(
@@ -82,8 +85,29 @@ class _MapCanvasState extends State<MapCanvas> {
           .clamp(0.1, 160);
 
   bool get _areaDrag =>
+      widget.type == AnswerType.polygon ||
       widget.type == AnswerType.freehandArea ||
       widget.type == AnswerType.circle;
+
+  void _cancelGesture() {
+    draft = [];
+    selected = null;
+    circleCenter = null;
+    gestureStart = null;
+    gestureCenter = null;
+    startSpan = 0;
+    _mouseStart = null;
+    _mouseLast = null;
+    _mousePanning = false;
+    _mouseFreehand = false;
+    _gestureActive = false;
+    _touchStart = null;
+  }
+
+  void _selectTool(DrawTool value) => setState(() {
+    _cancelGesture();
+    tool = value;
+  });
 
   @override
   void didUpdateWidget(covariant MapCanvas oldWidget) {
@@ -92,19 +116,19 @@ class _MapCanvasState extends State<MapCanvas> {
         oldWidget.config.center.lon != widget.config.center.lon ||
         oldWidget.config.center.lat != widget.config.center.lat ||
         oldWidget.config.span != widget.config.span;
-    if (oldWidget.type != widget.type || viewportChanged) {
-      draft = [];
-      selected = null;
-      circleCenter = null;
-      _mouseStart = null;
-      _mouseLast = null;
-      _mousePanning = false;
-      _mouseFreehand = false;
-      _mouseClickHandled = false;
+    if (oldWidget.type != widget.type ||
+        viewportChanged ||
+        oldWidget.readOnly != widget.readOnly) {
+      _cancelGesture();
+      _touchPointers.clear();
+      _touchNavigating = false;
+      tool = DrawTool.draw;
       undo.clear();
       redo.clear();
-      center = widget.config.center;
-      span = widget.config.span;
+      if (oldWidget.type != widget.type || viewportChanged) {
+        center = widget.config.center;
+        span = fittedSpan(size);
+      }
     }
   }
 
@@ -128,17 +152,34 @@ class _MapCanvasState extends State<MapCanvas> {
   }
 
   void history(bool forward) {
+    setState(_cancelGesture);
     final from = forward ? redo : undo, to = forward ? undo : redo;
     if (from.isEmpty || widget.readOnly) return;
     to.add(List.of(widget.points));
     widget.onChanged(from.removeLast());
   }
 
+  void clear() {
+    setState(_cancelGesture);
+    change([]);
+  }
+
+  List<GeoPoint> get editablePoints {
+    final points = List<GeoPoint>.of(widget.points);
+    if (_areaDrag &&
+        points.length > 1 &&
+        distanceKm(points.first, points.last) < 0.000001) {
+      points.removeLast();
+    }
+    return points;
+  }
+
   int? nearest(Offset p) {
     int? result;
     var distance = 24.0;
-    for (var i = 0; i < widget.points.length; i++) {
-      final d = (screen(widget.points[i]) - p).distance;
+    final points = editablePoints;
+    for (var i = 0; i < points.length; i++) {
+      final d = (screen(points[i]) - p).distance;
       if (d < distance) {
         distance = d;
         result = i;
@@ -149,7 +190,7 @@ class _MapCanvasState extends State<MapCanvas> {
 
   void tap(Offset p) {
     if (widget.readOnly || tool == DrawTool.navigate) return;
-    final points = List<GeoPoint>.of(widget.points);
+    final points = editablePoints;
     if (tool == DrawTool.deleteVertex) {
       final i = nearest(p);
       if (i != null) {
@@ -204,17 +245,34 @@ class _MapCanvasState extends State<MapCanvas> {
   }
 
   void _mouseDownEvent(PointerDownEvent event) {
-    if (event.kind != PointerDeviceKind.mouse) return;
+    if (event.kind != PointerDeviceKind.mouse) {
+      if (_touchPointers.isEmpty) {
+        _touchNavigating = false;
+        _touchStart = event.localPosition;
+      }
+      _touchPointers.add(event.pointer);
+      if (_touchPointers.length > 1) {
+        _touchNavigating = true;
+        setState(() => draft = []);
+      }
+      return;
+    }
     final primary = event.buttons & kPrimaryMouseButton != 0;
     final middle = event.buttons & kMiddleMouseButton != 0;
     if (!primary && !middle) return;
     _mouseStart = event.localPosition;
     _mouseLast = event.localPosition;
-    _mousePanning = middle || _mousePanIntent;
+    _mousePanning =
+        middle ||
+        _mousePanIntent ||
+        widget.readOnly ||
+        tool == DrawTool.navigate;
     // Freehand and vertex-move retain their intentional drag gestures. Other
     // geometry tools use drag for map panning and clicks for placement.
     _mouseFreehand =
-        primary && (_areaDrag || tool == DrawTool.move) && !_mousePanning;
+        primary &&
+        ((_areaDrag && tool == DrawTool.draw) || tool == DrawTool.move) &&
+        !_mousePanning;
     if (_mousePanning) draft = [];
     if (_mousePanning) setState(() {});
   }
@@ -236,6 +294,7 @@ class _MapCanvasState extends State<MapCanvas> {
   }
 
   void _mouseUpEvent(PointerUpEvent event) {
+    _touchPointers.remove(event.pointer);
     if (event.kind != PointerDeviceKind.mouse || !_mouseDown) return;
     final start = _mouseStart!;
     final wasPan = _mousePanning;
@@ -247,9 +306,9 @@ class _MapCanvasState extends State<MapCanvas> {
     if (!wasPan &&
         !wasFreehand &&
         (event.localPosition - start).distance < desktopDragThreshold) {
-      _mouseClickHandled = true;
       tap(event.localPosition);
     }
+    setState(() {});
   }
 
   @override
@@ -268,14 +327,11 @@ class _MapCanvasState extends State<MapCanvas> {
           return KeyEventResult.handled;
         }
         if (event.logicalKey == LogicalKeyboardKey.escape) {
-          setState(() {
-            draft = [];
-            tool = DrawTool.navigate;
-          });
+          _selectTool(DrawTool.draw);
           return KeyEventResult.handled;
         }
         if (event.logicalKey == LogicalKeyboardKey.delete && !widget.readOnly) {
-          change([]);
+          clear();
           return KeyEventResult.handled;
         }
         return KeyEventResult.ignored;
@@ -306,7 +362,7 @@ class _MapCanvasState extends State<MapCanvas> {
                         }),
                       ),
                   ],
-                  onChanged: (t) => setState(() => tool = t!),
+                  onChanged: (t) => _selectTool(t!),
                 )
               else if (widget.showTools)
                 for (final t in DrawTool.values.where(
@@ -324,7 +380,7 @@ class _MapCanvasState extends State<MapCanvas> {
                       ),
                     }),
                     selected: tool == t,
-                    onSelected: (_) => setState(() => tool = t),
+                    onSelected: (_) => _selectTool(t),
                   ),
               IconButton(
                 tooltip: tr('Zpět (Ctrl+Z)', 'Undo (Ctrl+Z)'),
@@ -338,7 +394,7 @@ class _MapCanvasState extends State<MapCanvas> {
               ),
               IconButton(
                 tooltip: tr('Vymazat', 'Clear'),
-                onPressed: widget.readOnly ? null : () => change([]),
+                onPressed: widget.readOnly ? null : clear,
                 icon: const Icon(Icons.delete_outline),
               ),
               IconButton(
@@ -386,6 +442,10 @@ class _MapCanvasState extends State<MapCanvas> {
                         onPointerDown: _mouseDownEvent,
                         onPointerMove: _mouseMoveEvent,
                         onPointerUp: _mouseUpEvent,
+                        onPointerCancel: (event) {
+                          _touchPointers.remove(event.pointer);
+                          setState(_cancelGesture);
+                        },
                         onPointerSignal: (event) {
                           if (event is PointerScrollEvent) {
                             setState(
@@ -401,17 +461,16 @@ class _MapCanvasState extends State<MapCanvas> {
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onTapUp: (details) {
-                            if (_mouseClickHandled) {
-                              _mouseClickHandled = false;
-                            } else {
+                            if (details.kind != PointerDeviceKind.mouse &&
+                                !_touchNavigating) {
                               tap(details.localPosition);
                             }
                           },
-                          onSecondaryTap: () => setState(() {
-                            draft = [];
-                            tool = DrawTool.navigate;
-                          }),
+                          onSecondaryTap: () => _selectTool(DrawTool.draw),
                           onScaleStart: (details) {
+                            _gestureActive =
+                                _mouseDown || _touchPointers.isNotEmpty;
+                            if (!_gestureActive) return;
                             gestureStart = details.localFocalPoint;
                             gestureCenter = center;
                             startSpan = span;
@@ -419,22 +478,32 @@ class _MapCanvasState extends State<MapCanvas> {
                                 _mousePanning) {
                               return;
                             }
-                            if (widget.readOnly || tool == DrawTool.navigate) {
+                            if (widget.readOnly ||
+                                tool == DrawTool.navigate ||
+                                _touchNavigating) {
                               return;
                             }
                             if (tool == DrawTool.move) {
-                              selected = nearest(details.localFocalPoint);
-                              draft = List.of(widget.points);
+                              selected = nearest(
+                                _mouseStart ??
+                                    _touchStart ??
+                                    details.localFocalPoint,
+                              );
+                              draft = editablePoints;
                             } else if (tool == DrawTool.draw) {
-                              circleCenter = geo(details.localFocalPoint);
+                              circleCenter = geo(
+                                _mouseStart ??
+                                    _touchStart ??
+                                    details.localFocalPoint,
+                              );
                               draft = [circleCenter!];
                             }
                           },
                           onScaleUpdate: (details) {
-                            if (_mousePanning) return;
+                            if (!_gestureActive || _mousePanning) return;
                             if (tool == DrawTool.navigate ||
                                 widget.readOnly ||
-                                details.pointerCount > 1) {
+                                _touchNavigating) {
                               setState(() {
                                 span = (startSpan / details.scale).clamp(
                                   0.1,
@@ -480,8 +549,8 @@ class _MapCanvasState extends State<MapCanvas> {
                                 ],
                               );
                             } else if (widget.type == AnswerType.polyline ||
-                                widget.type == AnswerType.freehandArea) {
-                              if (draft.length < 500 &&
+                                _areaDrag) {
+                              if (draft.length < (_areaDrag ? 499 : 500) &&
                                   (draft.isEmpty ||
                                       (screen(draft.last) -
                                                   details.localFocalPoint)
@@ -492,7 +561,9 @@ class _MapCanvasState extends State<MapCanvas> {
                             }
                           },
                           onScaleEnd: (_) {
-                            if (!widget.readOnly &&
+                            if (_gestureActive &&
+                                !_touchNavigating &&
+                                !widget.readOnly &&
                                 draft.isNotEmpty &&
                                 (tool == DrawTool.move ||
                                     widget.type == AnswerType.polyline ||
@@ -501,15 +572,23 @@ class _MapCanvasState extends State<MapCanvas> {
                               change(
                                 tool == DrawTool.move
                                     ? List.of(draft)
-                                    : closeRing(
+                                    : _areaDrag
+                                    ? closeRing(
                                         simplify(
                                           draft,
                                           toleranceKm: span * 0.035,
                                         ),
+                                      )
+                                    : simplify(
+                                        draft,
+                                        toleranceKm: span * 0.035,
                                       ),
                               );
                             }
-                            setState(() => draft = []);
+                            setState(() {
+                              draft = [];
+                              _gestureActive = false;
+                            });
                           },
                           child: RepaintBoundary(
                             child: CustomPaint(
