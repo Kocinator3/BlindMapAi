@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'geo.dart';
+import 'area_overlap.dart';
 import 'level.dart';
 
 class ScoreResult {
@@ -102,42 +103,15 @@ ScoreResult scoreAnswer(Question question, Geometry answer) {
       selfIntersects(closeRing(answer.parts.first))) {
     return const ScoreResult(0);
   }
-  // Deterministic stratified integration over the target bbox. The attempt area is
-  // computed analytically, so an enormous guess cannot hide between grid cells.
+  // Integrate polygon cross-sections without a fixed grid that can miss thin
+  // regions. Areas still use the documented regional projection.
   final a = expected.first, b = guessed.first;
-  double area(List<XY> ring) {
-    var result = 0.0;
-    for (var i = 0; i < ring.length; i++) {
-      final j = (i + 1) % ring.length;
-      result += ring[i].x * ring[j].y - ring[j].x * ring[i].y;
-    }
-    return result.abs() / 2;
-  }
-
-  final targetArea = area(a), guessArea = area(b);
+  final targetArea = polygonArea(a), guessArea = polygonArea(b);
   if (targetArea <= 0 || guessArea <= 0) return const ScoreResult(0);
-  final minX = a.map((p) => p.x).reduce(math.min),
-      maxX = a.map((p) => p.x).reduce(math.max);
-  final minY = a.map((p) => p.y).reduce(math.min),
-      maxY = a.map((p) => p.y).reduce(math.max);
-  var targetHits = 0, intersectionHits = 0;
-  const resolution = 100;
-  for (var y = 0; y < resolution; y++) {
-    for (var x = 0; x < resolution; x++) {
-      final p = XY(
-        minX + (x + 0.5) / resolution * (maxX - minX),
-        minY + (y + 0.5) / resolution * (maxY - minY),
-      );
-      if (insidePolygon(p, a)) {
-        targetHits++;
-        if (insidePolygon(p, b)) intersectionHits++;
-      }
-    }
-  }
-  final intersection = math.min(
-    guessArea,
-    targetArea * intersectionHits / math.max(1, targetHits),
-  );
+  final intersection = polygonIntersectionArea(
+    a,
+    b,
+  ).clamp(0.0, math.min(targetArea, guessArea));
   final coverage = intersection / targetArea;
   final iou = intersection / (targetArea + guessArea - intersection);
   // Square root makes approximate educational outlines less punishing.

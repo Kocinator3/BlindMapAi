@@ -6,7 +6,7 @@ The repository is a working pre-release, not completion of every requested featu
 - Mountain outlines are approximate authored teaching regions requiring source-backed review. Rivers now use generalized Natural Earth lines with documented concatenation/clipping; exact springs are omitted. City references need a complete citation pass.
 - Schema v1 intentionally rejects Polygon holes/MultiPolygon and unknown fields. Only country outlines are available as map layers; per-question map overrides and full viewport/property controls remain unfinished.
 - Visual multipart line editing preserves other parts but edits only the first part; use JSON for additional parts.
-- Area scoring uses a regional approximation (target extent at most 3500 km). Thin/tiny, high-latitude, antimeridian and large-area scenarios need deeper fairness testing.
+- Area scoring uses a regional projection (target extent at most 3500 km), now with cross-section intersection instead of grid sampling. Thin-region, antimeridian/high-latitude and near-capacity cases are tested, but broader projection-distortion and worst-case performance simulations remain open. Historical scores were not recomputed.
 - Pointer tools and keyboard undo/redo/cancel/clear work; fully keyboard-only geometry placement, richer semantics and large-text/landscape accessibility remain unfinished.
 - Desktop ordinary mouse clicks now place/select and drags pan after a centralized 6 px threshold. Freehand and vertex-move retain intentional drag editing; Space+left or middle drag pans during those tools. This interaction is widget-tested, but native Windows pointer behavior still needs a Windows runner check.
 - Czech/English principal UI is implemented; some enum labels, validation errors and explanatory text are still English/bilingual rather than fully localized through a centralized catalog.
@@ -17,6 +17,7 @@ The repository is a working pre-release, not completion of every requested featu
 - Flutter and writable Android SDK live in /tmp and may be removed by system cleanup. Install them permanently for ongoing development.
 
 ## Resolved audits
+- Fixed a thin concave exact area scoring zero because the old grid never hit the target. Cross-section overlap passes analytical shape tests, 200 rectangle cases and near-capacity concave-ring symmetry checks.
 - Authored mutation/rollback now serializes across failed concurrent saves; queued answer retries and cross-level record identity are regression-tested, including successful disk reload. Direct settings mutations still lack transactional rollback.
 - Follow-up desktop editor test covers polygon click placement, move and delete. A short click on an area tool is dispatched only when no drawing gesture was recognized; completed strokes still suppress click placement.
 - Authoring preservation: visual saves retain level metadata, JSON Apply retains all canonical level fields, and full draft snapshots protect description/question-detail/JSON-only edits. Unchanged imported levels are still guarded.
