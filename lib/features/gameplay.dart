@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -143,6 +144,148 @@ class _GameplayPageState extends State<GameplayPage> {
     }
   }
 
+  Widget _questionSummary({bool compact = false}) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      LinearProgressIndicator(
+        value:
+            (index + (result == null ? 0 : 1)) / widget.level.questions.length,
+      ),
+      Padding(
+        padding: EdgeInsets.symmetric(vertical: compact ? 3 : 6),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                '${index + 1} / ${widget.level.questions.length} · ${question.answerType.name}',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            if (widget.mode == GameMode.challenge)
+              Text('⏱ $remaining s · Combo $combo'),
+          ],
+        ),
+      ),
+      Text(
+        question.prompt,
+        maxLines: compact ? 3 : null,
+        overflow: compact ? TextOverflow.ellipsis : null,
+        style: compact
+            ? Theme.of(context).textTheme.titleMedium
+            : Theme.of(context).textTheme.titleLarge,
+      ),
+      Padding(
+        padding: EdgeInsets.only(top: compact ? 2 : 4, bottom: compact ? 2 : 4),
+        child: Text(
+          interactionHint,
+          maxLines: compact ? 4 : null,
+          overflow: compact ? TextOverflow.ellipsis : null,
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+      ),
+      if (result == null && question.hints.isNotEmpty)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            style: TextButton.styleFrom(
+              minimumSize: const Size(48, 36),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+            ),
+            onPressed: () => showDialog<void>(
+              context: context,
+              builder: (c) => AlertDialog(
+                content: Text(question.hints.join('\n')),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(c),
+                    child: const Text('OK'),
+                  ),
+                ],
+              ),
+            ),
+            icon: const Icon(Icons.lightbulb_outline, size: 18),
+            label: Text(tr('Nápověda', 'Hint')),
+          ),
+        ),
+    ],
+  );
+
+  Widget _map() => MapCanvas(
+    key: ValueKey(index),
+    land: widget.land,
+    config: widget.level.map,
+    type: question.answerType,
+    points: points,
+    czech: widget.store.language == 'cs',
+    onChanged: (p) => setState(() => points = p),
+    target: result == null ? null : question.geometry,
+    readOnly: result != null,
+    showTools: false,
+  );
+
+  Widget _resultPanel({bool compact = false}) {
+    if (result == null) return const SizedBox.shrink();
+    return Container(
+      padding: EdgeInsets.all(compact ? 8 : 12),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.secondaryContainer,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '${result!.points} / 1000${result!.distance == null ? '' : ' · ${result!.distance!.toStringAsFixed(1)} km'}',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          Text(
+            tr(
+              '● Modrá: tvůj pokus   ■ Oranžová: správná odpověď',
+              '● Blue: your attempt   ■ Orange: reference',
+            ),
+          ),
+          if (question.explanation.isNotEmpty)
+            ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: compact ? 90 : 120),
+              child: SingleChildScrollView(child: Text(question.explanation)),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _confirmButton({bool compact = false}) => SizedBox(
+    height: compact ? 44 : 48,
+    child: FilledButton.icon(
+      onPressed: busy
+          ? null
+          : result == null
+          ? (points.isEmpty ? null : submit)
+          : () {
+              setState(() {
+                if (index == widget.level.questions.length - 1) {
+                  done = true;
+                } else {
+                  index++;
+                  points = [];
+                  result = null;
+                  remaining = 90;
+                  error = null;
+                }
+              });
+            },
+      icon: Icon(result == null ? Icons.check : Icons.arrow_forward),
+      label: Text(
+        busy
+            ? tr('Ukládání…', 'Saving…')
+            : result == null
+            ? tr('Potvrdit odpověď', 'Confirm answer')
+            : tr('Pokračovat', 'Continue'),
+      ),
+    ),
+  );
+
   @override
   Widget build(BuildContext context) {
     if (done) {
@@ -201,138 +344,79 @@ class _GameplayPageState extends State<GameplayPage> {
         ],
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              LinearProgressIndicator(
-                value:
-                    (index + (result == null ? 0 : 1)) /
-                    widget.level.questions.length,
-              ),
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  children: [
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final compactLandscape =
+                constraints.maxWidth > constraints.maxHeight &&
+                constraints.maxHeight < 600;
+            if (compactLandscape) {
+              final panelWidth = math.min(
+                330.0,
+                math.max(235.0, constraints.maxWidth * 0.34),
+              );
+              return Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  SizedBox(
+                    width: panelWidth,
+                    child: Material(
+                      color: Theme.of(context).colorScheme.surface,
+                      child: SingleChildScrollView(
+                        padding: const EdgeInsets.fromLTRB(10, 4, 8, 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _questionSummary(compact: true),
+                            if (error != null)
+                              Text(
+                                error!,
+                                style: TextStyle(
+                                  color: Theme.of(context).colorScheme.error,
+                                ),
+                              ),
+                            const SizedBox(height: 4),
+                            _resultPanel(compact: true),
+                            const SizedBox(height: 6),
+                            _confirmButton(compact: true),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const VerticalDivider(width: 1),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: _map(),
+                    ),
+                  ),
+                ],
+              );
+            }
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 8, 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _questionSummary(compact: constraints.maxWidth < 600),
+                  Expanded(child: _map()),
+                  if (error != null)
                     Text(
-                      '${index + 1} / ${widget.level.questions.length} · ${question.answerType.name}',
+                      error!,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
                     ),
-                    if (widget.mode == GameMode.challenge)
-                      Text('⏱ $remaining s · Combo $combo'),
+                  if (result != null) ...[
+                    const SizedBox(height: 4),
+                    _resultPanel(),
                   ],
-                ),
+                  const SizedBox(height: 4),
+                  _confirmButton(),
+                ],
               ),
-              Text(
-                question.prompt,
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              Padding(
-                padding: const EdgeInsets.only(top: 4, bottom: 4),
-                child: Text(
-                  interactionHint,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ),
-              if (result == null && question.hints.isNotEmpty)
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: TextButton(
-                    onPressed: () => showDialog<void>(
-                      context: context,
-                      builder: (c) => AlertDialog(
-                        content: Text(question.hints.join('\n')),
-                        actions: [
-                          TextButton(
-                            onPressed: () => Navigator.pop(c),
-                            child: const Text('OK'),
-                          ),
-                        ],
-                      ),
-                    ),
-                    child: Text(tr('Nápověda', 'Hint')),
-                  ),
-                ),
-              Expanded(
-                child: MapCanvas(
-                  key: ValueKey(index),
-                  land: widget.land,
-                  config: widget.level.map,
-                  type: question.answerType,
-                  points: points,
-                  czech: widget.store.language == 'cs',
-                  onChanged: (p) => setState(() => points = p),
-                  target: result == null ? null : question.geometry,
-                  readOnly: result != null,
-                  showTools: question.answerType != AnswerType.point,
-                ),
-              ),
-              if (error != null)
-                Text(
-                  error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
-              if (result != null)
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.secondaryContainer,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '${result!.points} / 1000${result!.distance == null ? '' : ' · ${result!.distance!.toStringAsFixed(1)} km'}',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                      Text(
-                        tr(
-                          '● Modrá: tvůj pokus   ■ Oranžová: správná odpověď',
-                          '● Blue: your attempt   ■ Orange: reference',
-                        ),
-                      ),
-                      if (question.explanation.isNotEmpty)
-                        ConstrainedBox(
-                          constraints: const BoxConstraints(maxHeight: 90),
-                          child: SingleChildScrollView(
-                            child: Text(question.explanation),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              const SizedBox(height: 8),
-              FilledButton.icon(
-                onPressed: busy
-                    ? null
-                    : result == null
-                    ? (points.isEmpty ? null : submit)
-                    : () {
-                        setState(() {
-                          if (index == widget.level.questions.length - 1) {
-                            done = true;
-                          } else {
-                            index++;
-                            points = [];
-                            result = null;
-                            remaining = 90;
-                            error = null;
-                          }
-                        });
-                      },
-                icon: Icon(result == null ? Icons.check : Icons.arrow_forward),
-                label: Text(
-                  busy
-                      ? tr('Ukládání…', 'Saving…')
-                      : result == null
-                      ? tr('Potvrdit odpověď', 'Confirm answer')
-                      : tr('Pokračovat', 'Continue'),
-                ),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

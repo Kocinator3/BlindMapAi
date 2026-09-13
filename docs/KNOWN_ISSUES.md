@@ -7,7 +7,7 @@ The repository is a working pre-release, not completion of every requested featu
 - Schema v1 intentionally rejects Polygon holes/MultiPolygon and unknown fields. Only country outlines are available as map layers; per-question map overrides and full viewport/property controls remain unfinished.
 - Visual multipart line editing preserves other parts but edits only the first part; use JSON for additional parts.
 - Area scoring uses a regional projection (target extent at most 3500 km), now with cross-section intersection instead of grid sampling. Thin-region, antimeridian/high-latitude and near-capacity cases are tested, but broader projection-distortion and worst-case performance simulations remain open. Historical scores were not recomputed.
-- Pointer tools and keyboard undo/redo/cancel/clear work; fully keyboard-only geometry placement, richer semantics and large-text/landscape accessibility remain unfinished.
+- Pointer tools and keyboard undo/redo/cancel/clear work; gameplay now has contextual responsive controls and a map-first landscape layout. Fully keyboard-only geometry placement, richer semantics and large-text/landscape accessibility remain unfinished.
 - Desktop ordinary mouse clicks now place/select and drags pan after a centralized 6 px threshold. Freehand and vertex-move retain intentional drag editing; Space+left or middle drag pans during those tools. This interaction is widget-tested, but native Windows pointer behavior still needs a Windows runner check.
 - Czech/English principal UI is implemented; some enum labels, validation errors and explanatory text are still English/bilingual rather than fully localized through a centralized catalog.
 - API keys are session-only, never persisted. Optional secure OS vault storage is not implemented. Real hosted/local model compatibility needs user-configured endpoint testing; a loopback mock HTTP server is tested.
@@ -18,7 +18,8 @@ The repository is a working pre-release, not completion of every requested featu
 
 ## Resolved audits
 - Fixed a thin concave exact area scoring zero because the old grid never hit the target. Cross-section overlap passes analytical shape tests, 200 rectangle cases and near-capacity concave-ring symmetry checks.
-- Authored mutation/rollback now serializes across failed concurrent saves; queued answer retries and cross-level record identity are regression-tested, including successful disk reload. Direct settings mutations still lack transactional rollback.
+- Authored mutation/rollback and settings updates serialize across failed concurrent saves; queued answer retries, cross-level record identity and settings rollback are regression-tested, including successful disk reload.
+- Gameplay responsive layout is widget-tested at narrow portrait, landscape, larger portrait and desktop sizes. Android device rotation, touch rendering and accessibility text scaling still need device/emulator acceptance.
 - Follow-up desktop editor test covers polygon click placement, move and delete. A short click on an area tool is dispatched only when no drawing gesture was recognized; completed strokes still suppress click placement.
 - Authoring preservation: visual saves retain level metadata, JSON Apply retains all canonical level fields, and full draft snapshots protect description/question-detail/JSON-only edits. Unchanged imported levels are still guarded.
 - Senior review: river traces remain open, polygon drags draw areas, two-finger gestures discard drafts until all fingers lift, and cancellation/type changes reset transient state. Tests cover actual pan/zoom and full question/mountain transitions.

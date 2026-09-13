@@ -6,7 +6,7 @@ Flutter shared UI for Android, Windows and Linux. Domain models, geometry scorin
 - `domain/level.dart`: immutable Level/Question/Geometry, JSON codec, semantic validation and migration. All authored/imported/AI content enters this codec.
 - `domain/scoring.dart`: pure 0–1000 scoring with diagnostic metadata. It runs on submit, never during drawing.
 - `domain/area_overlap.dart`: projected simple-polygon intersection via horizontal cross-sections, split at vertices and edge crossings. Independent of Flutter and raster resolution.
-- `map/map_canvas.dart`: offline custom painting, cached geographic paths, viewport conversion and gesture/history state. Navigate mode owns pan/pinch; Draw mode owns answers. Player and reference overlays are distinct shapes/colors.
+- `map/map_canvas.dart`: offline custom painting, cached geographic paths, viewport conversion and gesture/history state. The gameplay shell passes compact mode and owns question context; the full editor retains the editing toolbar. Navigate mode owns pan/pinch; Draw mode owns answers. Player and reference overlays are distinct shapes/colors.
 - `data/store.dart`: local repository, serialized flushed saves, backup recovery, result history and derived progression. Settings are allowlisted to exclude provider secrets.
 - `data/ai_service.dart`: dedicated standalone prompt, bounded response extraction, provider interface and compatible HTTP client. Remote requests require HTTPS; loopback supports HTTP. Redirects are rejected. Keys are session-only.
 - `features/`: responsive shell, gameplay, visual authoring, JSON exchange, draft guards and AI configuration/review.
@@ -15,7 +15,7 @@ Flutter shared UI for Android, Windows and Linux. Domain models, geometry scorin
 `MapCanvas` uses one `desktopDragThreshold` (6 logical pixels). Point/Polyline/MultiPoint clicks place geometry; movement past the threshold pans and suppresses placement. Polygon/freehand/circle Draw tools own area drags; vertex-move owns editing drags. Space+left or middle drag temporarily pans without emitting geometry. Device-kind dispatch separates mouse clicks from touch taps. Two touch pointers cancel the draft and latch navigation until every finger lifts. Scale end closes areas only, leaving river strokes open. Central cancellation resets gesture fields; type/config changes reset tool/history, and gameplay keys provide fresh state per question. Mouse wheel zoom remains independent. Native and widget regression evidence is recorded in REVIEW_2026-09-13.md.
 
 ## Save recovery
-Authored put/delete/record operations serialize mutation, persistence and rollback as one boundary. This prevents an earlier failed save from undoing a later edit; raw save calls additionally serialize filesystem work. Settings currently mutate public fields directly and are not transactional.
+Authored put/delete/record operations and settings updates serialize mutation, persistence and rollback as one boundary. This prevents an earlier failed save from undoing a later edit; raw save calls additionally serialize filesystem work.
 
 Writes go to a flushed temporary file. A validated previous primary is copied to backup before replacement. Semantically invalid primary files are copied to timestamped recovery files and cannot replace a good backup. POSIX replacement is atomic; Windows requires deleting the primary before renaming, so the validated backup closes the recovery gap. Save errors propagate to the UI; authored-level mutations roll back in memory. Multiple save operations serialize their filesystem work.
 

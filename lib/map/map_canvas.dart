@@ -382,33 +382,37 @@ class _MapCanvasState extends State<MapCanvas> {
                     selected: tool == t,
                     onSelected: (_) => _selectTool(t),
                   ),
-              IconButton(
-                tooltip: tr('Zpět (Ctrl+Z)', 'Undo (Ctrl+Z)'),
-                onPressed: widget.readOnly ? null : () => history(false),
-                icon: const Icon(Icons.undo),
-              ),
-              IconButton(
-                tooltip: tr('Znovu (Ctrl+Y)', 'Redo (Ctrl+Y)'),
-                onPressed: widget.readOnly ? null : () => history(true),
-                icon: const Icon(Icons.redo),
-              ),
+              if (widget.showTools || widget.type != AnswerType.point)
+                IconButton(
+                  tooltip: tr('Zpět (Ctrl+Z)', 'Undo (Ctrl+Z)'),
+                  onPressed: widget.readOnly ? null : () => history(false),
+                  icon: const Icon(Icons.undo),
+                ),
+              if (widget.showTools)
+                IconButton(
+                  tooltip: tr('Znovu (Ctrl+Y)', 'Redo (Ctrl+Y)'),
+                  onPressed: widget.readOnly ? null : () => history(true),
+                  icon: const Icon(Icons.redo),
+                ),
               IconButton(
                 tooltip: tr('Vymazat', 'Clear'),
                 onPressed: widget.readOnly ? null : clear,
                 icon: const Icon(Icons.delete_outline),
               ),
-              IconButton(
-                tooltip: tr('Přiblížit', 'Zoom in'),
-                onPressed: () =>
-                    setState(() => span = (span / 1.4).clamp(0.1, 160)),
-                icon: const Icon(Icons.add),
-              ),
-              IconButton(
-                tooltip: tr('Oddálit', 'Zoom out'),
-                onPressed: () =>
-                    setState(() => span = (span * 1.4).clamp(0.1, 160)),
-                icon: const Icon(Icons.remove),
-              ),
+              if (widget.showTools) ...[
+                IconButton(
+                  tooltip: tr('Přiblížit', 'Zoom in'),
+                  onPressed: () =>
+                      setState(() => span = (span / 1.4).clamp(0.1, 160)),
+                  icon: const Icon(Icons.add),
+                ),
+                IconButton(
+                  tooltip: tr('Oddálit', 'Zoom out'),
+                  onPressed: () =>
+                      setState(() => span = (span * 1.4).clamp(0.1, 160)),
+                  icon: const Icon(Icons.remove),
+                ),
+              ],
               IconButton(
                 tooltip: tr('Výchozí pohled', 'Reset view'),
                 onPressed: () => setState(() {
