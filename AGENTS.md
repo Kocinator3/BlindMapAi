@@ -22,6 +22,14 @@ Persistent instructions for Codex sessions working on this repository.
 - If `.git` is read-only, leave source changes safely in the worktree, update `docs/PROJECT_STATE.md` with the exact state and manual `git add`/`git commit` commands, and do not retry pointlessly.
 - Maintain `docs/PROJECT_STATE.md` as current project memory. Before major work inspect it, the current `git status`, and the current diff; after stable milestones update the project documentation.
 - Continue autonomously on authorized work rather than repeatedly asking whether to proceed. When a stronger model returns after Luna work, review recent Luna changes, tests, and uncommitted state before major architecture work.
+- Use Git autonomously during development.
+- After each stable milestone:
+  - Inspect `git status` and `git diff`.
+  - Run relevant tests.
+  - Create a focused local commit.
+- Do not push to remotes unless explicitly authorized.
+- Never use `sudo`, `chmod 777`, `chown`, or other permission workarounds for Git.
+- If `.git` is read-only due to the Codex sandbox, preserve the working tree and report the exact manual commit command.
 
 ## Resume Protocol
 
