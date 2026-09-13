@@ -304,7 +304,7 @@ class _MapCanvasState extends State<MapCanvas> {
     _mousePanning = false;
     _mouseFreehand = false;
     if (!wasPan &&
-        !wasFreehand &&
+        (!wasFreehand || !_gestureActive) &&
         (event.localPosition - start).distance < desktopDragThreshold) {
       tap(event.localPosition);
     }

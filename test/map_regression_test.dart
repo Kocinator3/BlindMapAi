@@ -160,6 +160,42 @@ void main() {
     expect(painter(tester).span, lessThan(span));
   });
 
+  testWidgets(
+    'desktop polygon clicks and move/delete tools edit unique vertices',
+    (tester) async {
+      await mount(tester, AnswerType.polygon);
+      final p = origin(tester);
+      final g = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      final corners = [
+        p + const Offset(-80, -40),
+        p + const Offset(80, -40),
+        p + const Offset(80, 40),
+        p + const Offset(-80, 40),
+      ];
+      for (final corner in corners) {
+        await g.down(corner);
+        await g.up();
+        await tester.pump();
+      }
+      expect(points, hasLength(4));
+      final original = points.first;
+      await tester.tap(find.text('Move vertex'));
+      await tester.pump();
+      await g.down(corners.first);
+      await g.moveTo(corners.first + const Offset(-30, -10));
+      await g.up();
+      await tester.pump();
+      expect(points, hasLength(4));
+      expect(distanceKm(points.first, original), greaterThan(0));
+      await tester.tap(find.text('Delete vertex'));
+      await tester.pump();
+      await g.down(corners[1]);
+      await g.up();
+      await tester.pump();
+      expect(points, hasLength(3));
+    },
+  );
+
   testWidgets('cancelled mouse stroke cannot leak into the next click', (
     tester,
   ) async {

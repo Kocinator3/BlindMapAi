@@ -17,6 +17,7 @@ The repository is a working pre-release, not completion of every requested featu
 - Flutter and writable Android SDK live in /tmp and may be removed by system cleanup. Install them permanently for ongoing development.
 
 ## Resolved audits
+- Follow-up desktop editor test covers polygon click placement, move and delete. A short click on an area tool is dispatched only when no drawing gesture was recognized; completed strokes still suppress click placement.
 - Authoring preservation: visual saves retain level metadata, JSON Apply retains all canonical level fields, and full draft snapshots protect description/question-detail/JSON-only edits. Unchanged imported levels are still guarded.
 - Senior review: river traces remain open, polygon drags draw areas, two-finger gestures discard drafts until all fingers lift, and cancellation/type changes reset transient state. Tests cover actual pan/zoom and full question/mountain transitions.
 - Old project-memory Git/test-sandbox blockers were stale; the review started from a clean writable checkout and Linux native integration runs.
