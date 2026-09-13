@@ -1,4 +1,5 @@
 # Decisions
+- Authoring review: compare complete draft snapshots on Back rather than checking whether a title/prompt is nonempty. Imported unsaved seeds remain guarded; successful Save/Apply bypasses discard. Preserve tags/difficulty and explicit JSON ID changes through the visual editor.
 - 2026-09-13 senior review: retain the 6 px desktop threshold; derive area tracing from polygon/freehandArea/circle and selected tool; close only area strokes. Latch two-finger navigation until all fingers lift. Reset type-specific gesture/tool/history state; keyed gameplay instances distinguish questions. Escape cancels back to Draw so hidden navigation cannot trap Point gameplay. See REVIEW_2026-09-13.md.
 - 2026-09-13: Start with Flutter/Dart as requested; confirm available toolchain before selecting dependencies.
 - Core gameplay must be offline. Prefer bundled open vector geography over online tiles.

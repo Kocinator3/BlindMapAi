@@ -21,7 +21,10 @@ Git contains no explicit Astra/Luna attribution. Conservatively reviewed all cha
 Baseline: 34 tests passed, but new checks reproduced four failures. Interaction milestone: format clean, analyze clean, 45 tests and 3 Linux native integration flows pass. Native capture inspection additionally exposed the lost first stroke corner, now covered by geometry assertions. See REVIEW_2026-09-13.md.
 
 ## Next priority
-Fix authored-content preservation: visual level save loses tags/difficulty; draft guards miss description-only/question-detail changes and JSON drafts. Then audit concurrent mutation/save failures and area-scoring edge cases. Preserve existing recovery validation, provider allowlist, multipart preservation and strict schema.
+Audit desktop polygon editor clicks and concurrent mutation/save failures, then area-scoring edge cases. Preserve existing recovery validation, provider allowlist, multipart preservation and strict schema.
+
+## Authoring preservation milestone
+Complete draft snapshots protect level descriptions/settings, question details/geometry and JSON text. Unchanged imported seeds still require saving or explicit discard. Visual save and JSON Apply preserve level ID, tags and difficulty. Six regression tests cover loss reproduction, reversion, import guarding and canonical JSON-to-visual save. Format/analyze clean; 51 tests and 3 Linux native flows pass. Interaction milestone is committed as `0d45a8f`.
 
 ## Platform/release limits
 Only Linux is connected. Android/Windows runtime behavior remains unverified. Previous release artifacts predate this review; rebuild before distribution. Production Android signing, Windows builds, accessibility/localization and source-backed teaching geography remain open. The SDK in /tmp may be cleaned by the OS.

@@ -33,6 +33,7 @@ class _JsonPage extends StatefulWidget {
 
 class _JsonPageState extends State<_JsonPage> {
   late final text = TextEditingController(text: widget.level?.encode() ?? '');
+  bool applied = false;
   String? message;
   String tr(String cs, String en) => widget.czech ? cs : en;
   @override
@@ -50,132 +51,137 @@ class _JsonPageState extends State<_JsonPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(
-      title: Text(tr('JSON • import a export', 'JSON • import and export')),
-    ),
-    body: Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          Wrap(
-            spacing: 8,
-            children: [
-              TextButton(
-                onPressed: () => run(() async {
-                  final level = LevelCodec().decode(text.text);
-                  text.text = level.encode();
-                  setState(
-                    () => message = tr('JSON je platný.', 'JSON is valid.'),
-                  );
-                }),
-                child: Text(tr('Formátovat a ověřit', 'Format and validate')),
-              ),
-              TextButton(
-                onPressed: () => run(() async {
-                  await Clipboard.setData(ClipboardData(text: text.text));
-                  setState(() => message = tr('Zkopírováno.', 'Copied.'));
-                }),
-                child: Text(tr('Kopírovat', 'Copy')),
-              ),
-              TextButton(
-                onPressed: () => run(() async {
-                  final value = await Clipboard.getData(Clipboard.kTextPlain);
-                  if (value != null && value.text != null) {
-                    if (value.text!.length > LevelCodec.maxBytes) {
-                      throw const LevelValidationException(
-                        'Clipboard exceeds 2 MiB.',
-                      );
+  Widget build(BuildContext context) => UnsavedGuard(
+    czech: widget.czech,
+    dirty: () => !applied && text.text != (widget.level?.encode() ?? ''),
+    child: Scaffold(
+      appBar: AppBar(
+        title: Text(tr('JSON • import a export', 'JSON • import and export')),
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Wrap(
+              spacing: 8,
+              children: [
+                TextButton(
+                  onPressed: () => run(() async {
+                    final level = LevelCodec().decode(text.text);
+                    text.text = level.encode();
+                    setState(
+                      () => message = tr('JSON je platný.', 'JSON is valid.'),
+                    );
+                  }),
+                  child: Text(tr('Formátovat a ověřit', 'Format and validate')),
+                ),
+                TextButton(
+                  onPressed: () => run(() async {
+                    await Clipboard.setData(ClipboardData(text: text.text));
+                    setState(() => message = tr('Zkopírováno.', 'Copied.'));
+                  }),
+                  child: Text(tr('Kopírovat', 'Copy')),
+                ),
+                TextButton(
+                  onPressed: () => run(() async {
+                    final value = await Clipboard.getData(Clipboard.kTextPlain);
+                    if (value != null && value.text != null) {
+                      if (value.text!.length > LevelCodec.maxBytes) {
+                        throw const LevelValidationException(
+                          'Clipboard exceeds 2 MiB.',
+                        );
+                      }
+                      text.text = value.text!;
                     }
-                    text.text = value.text!;
-                  }
-                }),
-                child: Text(tr('Vložit', 'Paste')),
-              ),
-              TextButton(
-                onPressed: () => run(() async {
-                  final file = await openFile(
-                    acceptedTypeGroups: [
-                      const XTypeGroup(
-                        label: 'JSON',
-                        extensions: ['json'],
-                        mimeTypes: ['application/json'],
-                      ),
-                    ],
-                  );
-                  if (file != null) {
-                    if (await file.length() > LevelCodec.maxBytes) {
-                      throw const LevelValidationException(
-                        'File exceeds 2 MiB.',
-                      );
+                  }),
+                  child: Text(tr('Vložit', 'Paste')),
+                ),
+                TextButton(
+                  onPressed: () => run(() async {
+                    final file = await openFile(
+                      acceptedTypeGroups: [
+                        const XTypeGroup(
+                          label: 'JSON',
+                          extensions: ['json'],
+                          mimeTypes: ['application/json'],
+                        ),
+                      ],
+                    );
+                    if (file != null) {
+                      if (await file.length() > LevelCodec.maxBytes) {
+                        throw const LevelValidationException(
+                          'File exceeds 2 MiB.',
+                        );
+                      }
+                      text.text = await file.readAsString();
                     }
-                    text.text = await file.readAsString();
-                  }
-                }),
-                child: Text(tr('Otevřít soubor', 'Open file')),
-              ),
-              TextButton(
-                onPressed: () => run(() async {
-                  final level = LevelCodec().decode(text.text);
-                  if (Platform.isAndroid) {
-                    final saved =
-                        await const MethodChannel('org.slepamapa/files')
-                            .invokeMethod<bool>('exportJson', {
-                              'content': level.encode(),
-                            });
-                    if (mounted && saved == true) {
+                  }),
+                  child: Text(tr('Otevřít soubor', 'Open file')),
+                ),
+                TextButton(
+                  onPressed: () => run(() async {
+                    final level = LevelCodec().decode(text.text);
+                    if (Platform.isAndroid) {
+                      final saved =
+                          await const MethodChannel('org.slepamapa/files')
+                              .invokeMethod<bool>('exportJson', {
+                                'content': level.encode(),
+                              });
+                      if (mounted && saved == true) {
+                        setState(
+                          () => message = tr('Soubor uložen.', 'File saved.'),
+                        );
+                      }
+                      return;
+                    }
+                    final location = await getSaveLocation(
+                      suggestedName: 'level.json',
+                    );
+                    if (location != null) {
+                      await XFile.fromData(
+                        utf8.encode(level.encode()),
+                        mimeType: 'application/json',
+                        name: 'level.json',
+                      ).saveTo(location.path);
                       setState(
                         () => message = tr('Soubor uložen.', 'File saved.'),
                       );
                     }
-                    return;
-                  }
-                  final location = await getSaveLocation(
-                    suggestedName: 'level.json',
-                  );
-                  if (location != null) {
-                    await XFile.fromData(
-                      utf8.encode(level.encode()),
-                      mimeType: 'application/json',
-                      name: 'level.json',
-                    ).saveTo(location.path);
-                    setState(
-                      () => message = tr('Soubor uložen.', 'File saved.'),
-                    );
-                  }
-                }),
-                child: Text(tr('Uložit soubor', 'Save file')),
-              ),
-            ],
-          ),
-          if (message != null)
-            Padding(
-              padding: const EdgeInsets.all(8),
-              child: SelectableText(message!),
+                  }),
+                  child: Text(tr('Uložit soubor', 'Save file')),
+                ),
+              ],
             ),
-          Expanded(
-            child: TextField(
-              controller: text,
-              maxLines: null,
-              expands: true,
-              maxLength: LevelCodec.maxBytes,
-              style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
-              decoration: InputDecoration(
-                border: const OutlineInputBorder(),
-                labelText: tr('JSON úrovně', 'Level JSON'),
-                alignLabelWithHint: true,
+            if (message != null)
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: SelectableText(message!),
+              ),
+            Expanded(
+              child: TextField(
+                controller: text,
+                maxLines: null,
+                expands: true,
+                maxLength: LevelCodec.maxBytes,
+                style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
+                decoration: InputDecoration(
+                  border: const OutlineInputBorder(),
+                  labelText: tr('JSON úrovně', 'Level JSON'),
+                  alignLabelWithHint: true,
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 12),
-          FilledButton(
-            onPressed: () => run(() async {
-              final level = LevelCodec().decode(text.text);
-              Navigator.pop(context, level);
-            }),
-            child: Text(tr('Ověřit a použít', 'Validate and apply')),
-          ),
-        ],
+            const SizedBox(height: 12),
+            FilledButton(
+              onPressed: () => run(() async {
+                final level = LevelCodec().decode(text.text);
+                setState(() => applied = true);
+                Navigator.pop(context, level);
+              }),
+              child: Text(tr('Ověřit a použít', 'Validate and apply')),
+            ),
+          ],
+        ),
       ),
     ),
   );
@@ -209,6 +215,15 @@ class _LevelEditorState extends State<LevelEditor> {
   late MapConfig map = widget.level?.map ?? const MapConfig();
   late String language = widget.level?.language ?? 'cs';
   late bool unverified = widget.level?.unverified ?? false;
+  late String difficulty = widget.level?.difficulty ?? 'beginner';
+  late List<String> tags = List.of(widget.level?.tags ?? const []);
+  late final String initialDraft;
+  @override
+  void initState() {
+    super.initState();
+    initialDraft = value().encode();
+  }
+
   bool saved = false;
   String? error;
   bool saving = false;
@@ -221,6 +236,8 @@ class _LevelEditorState extends State<LevelEditor> {
     questions: questions,
     map: map,
     unverified: unverified,
+    difficulty: difficulty,
+    tags: tags,
   );
   @override
   void dispose() {
@@ -255,7 +272,13 @@ class _LevelEditorState extends State<LevelEditor> {
   @override
   Widget build(BuildContext context) => UnsavedGuard(
     czech: widget.store.language == 'cs',
-    dirty: () => !saved && (title.text.isNotEmpty || questions.isNotEmpty),
+    dirty: () =>
+        !saved &&
+        (value().encode() != initialDraft ||
+            (widget.level != null &&
+                !widget.store.custom.any(
+                  (level) => level.encode() == initialDraft,
+                ))),
     child: Scaffold(
       appBar: AppBar(
         title: Text(tr('Editor úrovně', 'Level editor')),
@@ -275,6 +298,9 @@ class _LevelEditorState extends State<LevelEditor> {
                   map = level.map;
                   language = level.language;
                   unverified = level.unverified;
+                  id = level.id;
+                  difficulty = level.difficulty;
+                  tags = List.of(level.tags);
                 });
               }
             },
@@ -506,6 +532,23 @@ class _QuestionEditorState extends State<QuestionEditor> {
       <List<GeoPoint>>[];
   late double tolerance = widget.question?.toleranceKm ?? 30;
   bool applied = false;
+  late final String initialDraft;
+  String get draftSnapshot => jsonEncode([
+    prompt.text,
+    explanation.text,
+    hints.text,
+    category.text,
+    type.name,
+    points.map((p) => p.toJson()).toList(),
+    otherParts.map((part) => part.map((p) => p.toJson()).toList()).toList(),
+    tolerance,
+  ]);
+  @override
+  void initState() {
+    super.initState();
+    initialDraft = draftSnapshot;
+  }
+
   String? error;
   String tr(String cs, String en) => widget.store.language == 'cs' ? cs : en;
   @override
@@ -683,7 +726,7 @@ class _QuestionEditorState extends State<QuestionEditor> {
     );
     return UnsavedGuard(
       czech: widget.store.language == 'cs',
-      dirty: () => !applied && (prompt.text.isNotEmpty || points.isNotEmpty),
+      dirty: () => !applied && draftSnapshot != initialDraft,
       child: Scaffold(
         appBar: AppBar(title: Text(tr('Editor otázky', 'Question editor'))),
         body: SafeArea(
