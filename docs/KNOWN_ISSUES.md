@@ -2,7 +2,7 @@
 
 The repository is a working pre-release, not completion of every requested feature.
 
-- Android APK compiles, but Android runtime/file export has not been device-tested. Windows is configured in CI but has not been built in this environment. CI has not been executed remotely.
+- Android APK is rebuilt and non-empty, but Android runtime/file export has not been device-tested. Windows is configured in CI but has not been built in this environment. CI has not been executed remotely.
 - Mountain outlines are approximate authored teaching regions requiring source-backed review. Rivers now use generalized Natural Earth lines with documented concatenation/clipping; exact springs are omitted. City references need a complete citation pass.
 - Schema v1 intentionally rejects Polygon holes/MultiPolygon and unknown fields. Only country outlines are available as map layers; per-question map overrides and full viewport/property controls remain unfinished.
 - Visual multipart line editing preserves other parts but edits only the first part; use JSON for additional parts.
@@ -13,7 +13,7 @@ The repository is a working pre-release, not completion of every requested featu
 - API keys are session-only, never persisted. Optional secure OS vault storage is not implemented. Real hosted/local model compatibility needs user-configured endpoint testing; a loopback mock HTTP server is tested.
 - Practice and learning share feedback behavior. Challenge has timer/combo but no combo reward. Highscores currently aggregate each session's recorded answers, including partial sessions. More complete progress dashboards remain unfinished.
 - Windows save replacement has a primary-file gap guarded by a backup; no native Windows crash-recovery test yet. Deep concurrent mutation/failure stress tests remain open.
-- Linux distribution is a GTK-dependent tar bundle, not an AppImage. Android APK uses development signing, unsuitable for a production store release.
+- Linux distribution is a GTK-dependent tar bundle, not an AppImage; the final bundle is smoke-launched here. Android APK uses development signing, unsuitable for a production store release.
 - Flutter and writable Android SDK live in /tmp and may be removed by system cleanup. Install them permanently for ongoing development.
 
 ## Resolved audits

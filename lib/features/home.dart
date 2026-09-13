@@ -315,10 +315,8 @@ class _HomePageState extends State<HomePage> {
           SwitchListTile(
             title: Text(tr('Tmavý režim', 'Dark theme')),
             value: widget.store.dark,
-            onChanged: (v) => action(() async {
-              widget.store.dark = v;
-              await widget.store.save();
-            }),
+            onChanged: (v) =>
+                action(() => widget.store.updateSettings(dark: v)),
           ),
           ListTile(
             title: Text(tr('Jazyk aplikace', 'App language')),
@@ -328,10 +326,8 @@ class _HomePageState extends State<HomePage> {
                 DropdownMenuItem(value: 'cs', child: Text('Čeština')),
                 DropdownMenuItem(value: 'en', child: Text('English')),
               ],
-              onChanged: (v) => action(() async {
-                widget.store.language = v!;
-                await widget.store.save();
-              }),
+              onChanged: (v) =>
+                  action(() => widget.store.updateSettings(language: v)),
             ),
           ),
           ListTile(

@@ -68,17 +68,18 @@ class _AiPageState extends State<AiPage> {
         timeoutSeconds: timeout,
       );
       config.endpoint();
-      widget.store.provider = {
-        'baseUrl': config.baseUrl,
-        'model': config.model,
-        'name': config.name,
-        'timeout': config.timeoutSeconds,
-      };
-      await widget.store.save();
-      final response = await provider.generate(
-        config,
-        test ? 'Reply with OK.' : await prompt(),
+      await widget.store.updateSettings(
+        providerSettings: {
+          'baseUrl': config.baseUrl,
+          'model': config.model,
+          'name': config.name,
+          'timeout': config.timeoutSeconds,
+        },
       );
+      if (!mounted || token != generation) return;
+      final requestPrompt = test ? 'Reply with OK.' : await prompt();
+      if (!mounted || token != generation) return;
+      final response = await provider.generate(config, requestPrompt);
       if (!mounted || token != generation) return;
       if (test) {
         setState(

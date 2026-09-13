@@ -244,6 +244,41 @@ class AppStore extends ChangeNotifier {
     }
   });
 
+  Future<void> updateSettings({
+    String? language,
+    bool? dark,
+    Map<String, dynamic>? providerSettings,
+  }) {
+    // Own the input before waiting in the mutation queue.
+    final settings = providerSettings == null
+        ? null
+        : Map<String, dynamic>.of(providerSettings);
+    return _mutate(() async {
+      final oldLanguage = this.language,
+          oldDark = this.dark,
+          oldProvider = provider;
+      if (language != null && !['cs', 'en'].contains(language)) {
+        throw ArgumentError.value(language, 'language', 'Expected cs or en');
+      }
+      this.language = language ?? this.language;
+      this.dark = dark ?? this.dark;
+      if (settings != null) {
+        provider = {
+          for (final key in ['baseUrl', 'model', 'name', 'timeout'])
+            if (settings.containsKey(key)) key: settings[key],
+        };
+      }
+      try {
+        await save();
+      } catch (_) {
+        this.language = oldLanguage;
+        this.dark = oldDark;
+        provider = oldProvider;
+        rethrow;
+      }
+    });
+  }
+
   Future<void> record({
     required String session,
     required Level level,

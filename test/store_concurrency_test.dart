@@ -26,6 +26,14 @@ class FailingFirstStore extends AppStore {
   }
 }
 
+class FailingSettingsStore extends AppStore {
+  bool fail = true;
+  @override
+  Future<void> save() async {
+    if (fail) throw StateError('Simulated settings failure');
+  }
+}
+
 Level level(String id) => Level(
   id: id,
   title: id,
@@ -126,6 +134,36 @@ void main() {
         );
       }
       expect(store.history, hasLength(2));
+    },
+  );
+
+  test(
+    'settings rollback restores all fields when persistence fails',
+    () async {
+      final store = FailingSettingsStore()
+        ..language = 'cs'
+        ..dark = false
+        ..provider = {'name': 'old'};
+      await expectLater(
+        store.updateSettings(
+          language: 'en',
+          dark: true,
+          providerSettings: {'name': 'new', 'apiKey': 'discarded'},
+        ),
+        throwsStateError,
+      );
+      expect(store.language, 'cs');
+      expect(store.dark, isFalse);
+      expect(store.provider, {'name': 'old'});
+      store.fail = false;
+      await store.updateSettings(
+        language: 'en',
+        dark: true,
+        providerSettings: {'name': 'new', 'apiKey': 'discarded'},
+      );
+      expect(store.language, 'en');
+      expect(store.dark, isTrue);
+      expect(store.provider, {'name': 'new'});
     },
   );
 }
