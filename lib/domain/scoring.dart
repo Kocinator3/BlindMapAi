@@ -28,12 +28,25 @@ class ScoreResult {
 double proximity(double distance, double tolerance) =>
     math.exp(-math.pow(distance / tolerance, 1.35)).toDouble();
 
-ScoreResult scoreAnswer(Question question, Geometry answer) {
+ScoreResult scoreAnswer(
+  Question question,
+  Geometry answer, {
+  double toleranceMultiplier = 1,
+}) {
+  if (!toleranceMultiplier.isFinite ||
+      toleranceMultiplier < 0.25 ||
+      toleranceMultiplier > 4) {
+    throw ArgumentError.value(
+      toleranceMultiplier,
+      'toleranceMultiplier',
+      'Expected 0.25–4',
+    );
+  }
   if (answer.points.isEmpty || answer.points.any((p) => !p.valid)) {
     return const ScoreResult(0);
   }
   final target = question.geometry;
-  final tolerance = question.toleranceKm;
+  final tolerance = question.toleranceKm * toleranceMultiplier;
   if (question.answerType == AnswerType.point) {
     final distance = distanceKm(target.points.first, answer.points.first);
     return ScoreResult(

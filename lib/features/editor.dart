@@ -214,6 +214,8 @@ class _LevelEditorState extends State<LevelEditor> {
   late List<Question> questions = List.of(widget.level?.questions ?? []);
   late MapConfig map = widget.level?.map ?? const MapConfig();
   late String language = widget.level?.language ?? 'cs';
+  late bool hardcore = widget.level?.hardcore ?? false;
+  late double toleranceMultiplier = widget.level?.toleranceMultiplier ?? 1;
   late bool unverified = widget.level?.unverified ?? false;
   late String difficulty = widget.level?.difficulty ?? 'beginner';
   late List<String> tags = List.of(widget.level?.tags ?? const []);
@@ -236,6 +238,8 @@ class _LevelEditorState extends State<LevelEditor> {
     questions: questions,
     map: map,
     unverified: unverified,
+    hardcore: hardcore,
+    toleranceMultiplier: toleranceMultiplier,
     difficulty: difficulty,
     tags: tags,
   );
@@ -298,6 +302,8 @@ class _LevelEditorState extends State<LevelEditor> {
                   map = level.map;
                   language = level.language;
                   unverified = level.unverified;
+                  hardcore = level.hardcore;
+                  toleranceMultiplier = level.toleranceMultiplier;
                   id = level.id;
                   difficulty = level.difficulty;
                   tags = List.of(level.tags);
@@ -368,7 +374,67 @@ class _LevelEditorState extends State<LevelEditor> {
                           ? const GeoPoint(12, 50)
                           : const GeoPoint(15.5, 49.8),
                       span: v!,
+                      borders: map.borders,
+                      rivers: map.rivers,
+                      cities: map.cities,
                     ),
+                  ),
+                ),
+              ),
+              SwitchListTile(
+                title: const Text('Hardcore mode'),
+                subtitle: Text(
+                  tr(
+                    'Odpověď pod 700 / 1000 ukončí úroveň.',
+                    'An answer below 700 / 1000 ends the level.',
+                  ),
+                ),
+                value: hardcore,
+                onChanged: (v) => setState(() => hardcore = v),
+              ),
+              Text(
+                tr(
+                  'Násobič tolerance: ${toleranceMultiplier.toStringAsFixed(2)}×',
+                  'Tolerance multiplier: ${toleranceMultiplier.toStringAsFixed(2)}×',
+                ),
+              ),
+              Text(
+                tr(
+                  'Pro body a řeky. Oblasti se hodnotí podle překryvu.',
+                  'For points and rivers. Areas are scored by overlap.',
+                ),
+              ),
+              Slider(
+                value: toleranceMultiplier,
+                min: 0.25,
+                max: 4,
+                divisions: 15,
+                label: '${toleranceMultiplier.toStringAsFixed(2)}×',
+                onChanged: (v) => setState(() => toleranceMultiplier = v),
+              ),
+              SwitchListTile(
+                title: Text(tr('Řeky bez názvů', 'Unlabeled rivers')),
+                value: map.rivers,
+                onChanged: (v) => setState(
+                  () => map = MapConfig(
+                    center: map.center,
+                    span: map.span,
+                    borders: map.borders,
+                    rivers: v,
+                    cities: map.cities,
+                  ),
+                ),
+              ),
+              SwitchListTile(
+                title: Text(tr('Města bez názvů', 'Unlabeled cities')),
+                value: map.cities,
+                onChanged: (v) => setState(
+                  () => map = MapConfig(
+                    center: map.center,
+                    span: map.span,
+                    borders: map.borders,
+                    rivers: map.rivers,
+                    cities: v,
                   ),
                 ),
               ),

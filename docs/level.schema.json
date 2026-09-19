@@ -55,6 +55,14 @@
         },
         "showCountryBorders": {
           "type": "boolean"
+        },
+        "showRivers": {
+          "type": "boolean",
+          "default": true
+        },
+        "showCities": {
+          "type": "boolean",
+          "default": true
         }
       },
       "additionalProperties": false
@@ -66,6 +74,18 @@
       "items": {
         "$ref": "#/$defs/question"
       }
+    },
+    "hardcoreMode": {
+      "type": "boolean",
+      "default": false,
+      "description": "An answer below 700/1000 ends the level."
+    },
+    "toleranceMultiplier": {
+      "type": "number",
+      "minimum": 0.25,
+      "maximum": 4,
+      "default": 1,
+      "description": "Multiplies distance tolerance for point, multiPoint and polyline; area overlap is unchanged."
     }
   },
   "$defs": {

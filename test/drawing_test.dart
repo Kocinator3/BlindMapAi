@@ -1,3 +1,5 @@
+import 'fixed_order_random.dart';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -281,7 +283,12 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: ThemeData(platform: TargetPlatform.linux),
-        home: GameplayPage(level: level, store: store, land: const []),
+        home: GameplayPage(
+          random: FixedOrderRandom(),
+          level: level,
+          store: store,
+          land: const [],
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -329,6 +336,7 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         home: GameplayPage(
+          random: FixedOrderRandom(),
           level: Level(
             id: 'area-point',
             title: 'Transition',
@@ -404,7 +412,12 @@ void main() {
       final store = AppStore()..language = 'en';
       await tester.pumpWidget(
         MaterialApp(
-          home: GameplayPage(level: level, store: store, land: const []),
+          home: GameplayPage(
+            random: FixedOrderRandom(),
+            level: level,
+            store: store,
+            land: const [],
+          ),
         ),
       );
       await tester.pumpAndSettle();

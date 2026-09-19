@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 
 import 'geo.dart';
 
@@ -62,22 +63,27 @@ class Question {
 class MapConfig {
   final GeoPoint center;
   final double span;
-  final bool borders;
+  final bool borders, rivers, cities;
   const MapConfig({
     this.center = const GeoPoint(15.5, 49.8),
     this.span = 9,
     this.borders = true,
+    this.rivers = true,
+    this.cities = true,
   });
   Map<String, dynamic> toJson() => {
     'center': center.toJson(),
     'longitudeSpan': span,
     'showCountryBorders': borders,
+    'showRivers': rivers,
+    'showCities': cities,
   };
 }
 
 class Level {
   final String id, title, description, language, difficulty;
-  final bool unverified;
+  final bool unverified, hardcore;
+  final double toleranceMultiplier;
   final List<String> tags;
   final MapConfig map;
   final List<Question> questions;
@@ -89,6 +95,8 @@ class Level {
     this.language = 'cs',
     this.difficulty = 'beginner',
     this.unverified = false,
+    this.hardcore = false,
+    this.toleranceMultiplier = 1,
     this.map = const MapConfig(),
     List<String> tags = const [],
   }) : questions = List.unmodifiable(questions),
@@ -101,10 +109,15 @@ class Level {
     'language': language,
     'difficulty': difficulty,
     'unverified': unverified,
+    'hardcoreMode': hardcore,
+    'toleranceMultiplier': toleranceMultiplier,
     'tags': tags,
     'map': map.toJson(),
     'questions': questions.map((q) => q.toJson()).toList(),
   };
+  List<Question> shuffledQuestions([Random? random]) =>
+      List<Question>.of(questions)..shuffle(random);
+
   String encode() => const JsonEncoder.withIndent('  ').convert(toJson());
 }
 
@@ -225,6 +238,8 @@ class LevelCodec {
       'difficulty',
       'tags',
       'unverified',
+      'hardcoreMode',
+      'toleranceMultiplier',
       'map',
       'questions',
     ], 'Level');
@@ -394,13 +409,23 @@ class LevelCodec {
       );
     }
     final map = object(json['map'] ?? <String, dynamic>{}, 'map');
-    keys(map, ['center', 'longitudeSpan', 'showCountryBorders'], 'map');
+    keys(map, [
+      'center',
+      'longitudeSpan',
+      'showCountryBorders',
+      'showRivers',
+      'showCities',
+    ], 'map');
+    for (final key in ['showCountryBorders', 'showRivers', 'showCities']) {
+      if (map.containsKey(key) && map[key] is! bool) {
+        fail('map.$key', 'Expected a boolean.');
+      }
+    }
+    if (json.containsKey('hardcoreMode') && json['hardcoreMode'] is! bool) {
+      fail('hardcoreMode', 'Expected a boolean.');
+    }
     if (json['unverified'] != null && json['unverified'] is! bool) {
       fail('unverified', 'Expected a boolean.');
-    }
-    if (map['showCountryBorders'] != null &&
-        map['showCountryBorders'] is! bool) {
-      fail('map.showCountryBorders', 'Expected a boolean.');
     }
     return Level(
       id: string(json['id'], 'id'),
@@ -416,10 +441,21 @@ class LevelCodec {
       ),
       tags: strings(json['tags'], 'tags'),
       unverified: json['unverified'] == true,
+      hardcore: json['hardcoreMode'] == true,
+      toleranceMultiplier: number(
+        json.containsKey('toleranceMultiplier')
+            ? json['toleranceMultiplier']
+            : 1,
+        'toleranceMultiplier',
+        0.25,
+        4,
+      ),
       map: MapConfig(
         center: point(map['center'] ?? [15.5, 49.8], 'map.center'),
         span: number(map['longitudeSpan'] ?? 9, 'map.longitudeSpan', 0.1, 160),
         borders: map['showCountryBorders'] != false,
+        rivers: map['showRivers'] != false,
+        cities: map['showCities'] != false,
       ),
       questions: questions,
     );

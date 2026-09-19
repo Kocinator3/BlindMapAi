@@ -1,3 +1,5 @@
+import 'fixed_order_random.dart';
+
 import 'dart:io';
 
 import 'package:flutter/gestures.dart';
@@ -54,6 +56,75 @@ void main() {
   Offset origin(WidgetTester tester) => tester.getCenter(surface());
   dynamic painter(WidgetTester tester) =>
       tester.widget<CustomPaint>(surface()).painter;
+
+  testWidgets(
+    'one-finger point pan moves the map without an answer; next tap places one',
+    (tester) async {
+      await mount(tester, AnswerType.point);
+      final p = origin(tester);
+      final before = painter(tester).center as GeoPoint;
+      final finger = await tester.startGesture(p);
+      await finger.moveTo(p + const Offset(40, 0));
+      await finger.moveTo(p + const Offset(110, 20));
+      await finger.up();
+      await tester.pump();
+      expect(
+        distanceKm(before, painter(tester).center as GeoPoint),
+        greaterThan(10),
+      );
+      expect(changes, isEmpty);
+      await tester.tapAt(p);
+      await tester.pump();
+      expect(points, hasLength(1));
+    },
+  );
+
+  testWidgets(
+    'off-center pinch keeps its geographic anchor and dropping a finger does not jump',
+    (tester) async {
+      await mount(tester, AnswerType.point);
+      final p = origin(tester) + const Offset(130, 0);
+      final first = await tester.startGesture(
+        p - const Offset(60, 0),
+        pointer: 1,
+      );
+      final second = await tester.startGesture(
+        p + const Offset(60, 0),
+        pointer: 2,
+      );
+      await first.moveTo(p - const Offset(100, 0));
+      await second.moveTo(p + const Offset(100, 0));
+      await tester.pump();
+      final initialSpan = painter(tester).span as double;
+      final initialCenter = painter(tester).center as GeoPoint;
+      final width = tester.getSize(surface()).width;
+      final anchor = initialCenter.lon + 130 * initialSpan / width;
+      await first.moveTo(p - const Offset(140, 0));
+      await second.moveTo(p + const Offset(140, 0));
+      await tester.pump();
+      expect(painter(tester).span as double, lessThan(initialSpan));
+      final nextCenter = painter(tester).center as GeoPoint;
+      expect(
+        nextCenter.lon + 130 * (painter(tester).span as double) / width,
+        closeTo(anchor, 0.03),
+      );
+      await second.up();
+      await tester.pump();
+      final beforeMove = painter(tester).center as GeoPoint;
+      await first.moveBy(const Offset(1, 0));
+      await tester.pump();
+      expect(
+        distanceKm(beforeMove, painter(tester).center as GeoPoint),
+        lessThan(2),
+      );
+      await first.cancel();
+      await tester.pump();
+      expect(changes, isEmpty);
+      await tester.tapAt(origin(tester));
+      await tester.pump();
+      expect(points, hasLength(1));
+    },
+  );
 
   testWidgets('touch river stays open', (tester) async {
     await mount(tester, AnswerType.polyline);
@@ -273,6 +344,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           home: GameplayPage(
+            random: FixedOrderRandom(),
             level: Level(
               id: 'generic-transitions',
               title: 'Generic transitions',

@@ -8,6 +8,21 @@ import 'package:flutter/services.dart';
 import '../domain/geo.dart';
 import '../domain/level.dart';
 
+class MapCity {
+  final GeoPoint point;
+  final bool capital;
+  const MapCity(this.point, {required this.capital});
+}
+
+class MapContext {
+  final List<List<GeoPoint>> rivers;
+  final List<MapCity> cities;
+  const MapContext({this.rivers = const [], this.cities = const []});
+  static final _byLand = Expando<MapContext>();
+  static MapContext forLand(List<List<GeoPoint>> land) =>
+      _byLand[land] ?? const MapContext();
+}
+
 enum DrawTool { navigate, draw, move, addVertex, deleteVertex }
 
 class MapCanvas extends StatefulWidget {
@@ -49,6 +64,20 @@ class MapCanvas extends StatefulWidget {
         ]);
       }
     }
+    final context = jsonDecode(
+      await rootBundle.loadString('assets/maps/context.json'),
+    ) as Map<String, dynamic>;
+    GeoPoint point(dynamic p) =>
+        GeoPoint((p[0] as num).toDouble(), (p[1] as num).toDouble());
+    MapContext._byLand[rings] = MapContext(
+      rivers: [
+        for (final line in context['rivers']) [for (final p in line) point(p)],
+      ],
+      cities: [
+        for (final p in context['cities'])
+          MapCity(point(p['point']), capital: p['capital'] == true),
+      ],
+    );
     return rings;
   }
 
@@ -62,6 +91,9 @@ class _MapCanvasState extends State<MapCanvas> {
   late GeoPoint center = widget.config.center;
   late double span = widget.config.span;
   double startSpan = 0;
+  int _navigationPointers = 0;
+  double _navigationScale = 1;
+  GeoPoint? _navigationAnchor;
   GeoPoint? gestureCenter, circleCenter;
   Offset? gestureStart;
   int? selected;
@@ -96,6 +128,9 @@ class _MapCanvasState extends State<MapCanvas> {
     gestureStart = null;
     gestureCenter = null;
     startSpan = 0;
+    _navigationAnchor = null;
+    _navigationPointers = 0;
+    _navigationScale = 1;
     _mouseStart = null;
     _mouseLast = null;
     _mousePanning = false;
@@ -478,13 +513,21 @@ class _MapCanvasState extends State<MapCanvas> {
                             gestureStart = details.localFocalPoint;
                             gestureCenter = center;
                             startSpan = span;
+                            _navigationAnchor = geo(details.localFocalPoint);
+                            _navigationPointers = details.pointerCount;
+                            _navigationScale = 1;
                             if (_mouseDown && !_mouseFreehand ||
                                 _mousePanning) {
                               return;
                             }
                             if (widget.readOnly ||
                                 tool == DrawTool.navigate ||
-                                _touchNavigating) {
+                                _touchNavigating ||
+                                (!_mouseDown &&
+                                    tool == DrawTool.draw &&
+                                    (widget.type == AnswerType.point ||
+                                        widget.type ==
+                                            AnswerType.multiPoint))) {
                               return;
                             }
                             if (tool == DrawTool.move) {
@@ -507,22 +550,39 @@ class _MapCanvasState extends State<MapCanvas> {
                             if (!_gestureActive || _mousePanning) return;
                             if (tool == DrawTool.navigate ||
                                 widget.readOnly ||
-                                _touchNavigating) {
-                              setState(() {
-                                span = (startSpan / details.scale).clamp(
-                                  0.1,
-                                  160,
+                                _touchNavigating ||
+                                (!_mouseDown &&
+                                    tool == DrawTool.draw &&
+                                    (widget.type == AnswerType.point ||
+                                        widget.type ==
+                                            AnswerType.multiPoint))) {
+                              if (_navigationPointers != details.pointerCount) {
+                                _navigationPointers = details.pointerCount;
+                                _navigationScale = details.scale;
+                                startSpan = span;
+                                _navigationAnchor = geo(
+                                  details.localFocalPoint,
                                 );
-                                final delta =
-                                    details.localFocalPoint - gestureStart!;
+                                return;
+                              }
+                              setState(() {
+                                span =
+                                    (startSpan *
+                                            _navigationScale /
+                                            details.scale)
+                                        .clamp(0.1, 160);
+                                final anchor = _navigationAnchor!;
+                                final focal = details.localFocalPoint;
+                                final latitude =
+                                    (anchor.lat +
+                                            (focal.dy - size.height / 2) /
+                                                latitudeScale)
+                                        .clamp(-80.0, 80.0);
                                 center = GeoPoint(
-                                  (gestureCenter!.lon - delta.dx / scale).clamp(
-                                    -180,
-                                    180,
-                                  ),
-                                  (gestureCenter!.lat +
-                                          delta.dy / latitudeScale)
-                                      .clamp(-80, 80),
+                                  (anchor.lon -
+                                          (focal.dx - size.width / 2) / scale)
+                                      .clamp(-180, 180),
+                                  latitude,
                                 );
                               });
                               return;
@@ -605,6 +665,9 @@ class _MapCanvasState extends State<MapCanvas> {
                                 type: widget.type,
                                 target: widget.target,
                                 borders: widget.config.borders,
+                                context: MapContext.forLand(widget.land),
+                                showRivers: widget.config.rivers,
+                                showCities: widget.config.cities,
                                 dark:
                                     Theme.of(context).brightness ==
                                     Brightness.dark,
@@ -623,8 +686,12 @@ class _MapCanvasState extends State<MapCanvas> {
             padding: const EdgeInsets.all(4),
             child: Text(
               tr(
-                'Posun: táhnout / přiblížit • Kreslit: bod nebo tah • Natural Earth',
-                'Navigate: pan / pinch • Draw: tap or trace • Natural Earth',
+                widget.config.cities
+                    ? '○ město · ⬠ hlavní město · Natural Earth'
+                    : 'Posun: táhnout / přiblížit · Natural Earth',
+                widget.config.cities
+                    ? '○ city · ⬠ capital · Natural Earth'
+                    : 'Navigate: pan / pinch · Natural Earth',
               ),
               style: Theme.of(context).textTheme.labelSmall,
             ),
@@ -644,7 +711,8 @@ class _MapPainter extends CustomPainter {
   final List<GeoPoint> points;
   final AnswerType type;
   final Geometry? target;
-  final bool borders, dark;
+  final bool borders, dark, showRivers, showCities;
+  final MapContext context;
   _MapPainter({
     required this.land,
     required this.center,
@@ -653,6 +721,9 @@ class _MapPainter extends CustomPainter {
     required this.type,
     required this.target,
     required this.borders,
+    required this.context,
+    required this.showRivers,
+    required this.showCities,
     required this.dark,
   });
   @override
@@ -708,6 +779,49 @@ class _MapPainter extends CustomPainter {
       if (borders) canvas.drawPath(p, border);
     }
     canvas.restore();
+    if (showRivers) {
+      final riverPaint = Paint()
+        ..color = dark ? const Color(0xff70a7bc) : const Color(0xff729fb4)
+        ..strokeWidth = 1.2
+        ..style = PaintingStyle.stroke;
+      for (final line in context.rivers) {
+        final cached = _landPaths[line] ??= (Path()
+          ..addPolygon(line.map((p) => Offset(p.lon, p.lat)).toList(), false));
+        if (cached.getBounds().overlaps(viewport)) {
+          canvas.drawPath(path(line), riverPaint);
+        }
+      }
+    }
+    if (showCities) {
+      final cityPaint = Paint()
+        ..color = dark ? const Color(0xffb8c9c5) : const Color(0xff657871);
+      for (final city in context.cities) {
+        final p = project(city.point);
+        if ((Offset.zero & size).contains(p)) {
+          final radius = city.capital
+              ? (span > 25 ? 3.5 : 5.0)
+              : (span > 25 ? 1.5 : 2.5);
+          cityPaint
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = city.capital ? 1.5 : 1;
+          if (city.capital) {
+            final pentagon = Path()
+              ..addPolygon([
+                for (var i = 0; i < 5; i++)
+                  p +
+                      Offset(
+                            math.cos(-math.pi / 2 + i * 2 * math.pi / 5),
+                            math.sin(-math.pi / 2 + i * 2 * math.pi / 5),
+                          ) *
+                          radius,
+              ], true);
+            canvas.drawPath(pentagon, cityPaint);
+          } else {
+            canvas.drawCircle(p, radius, cityPaint);
+          }
+        }
+      }
+    }
     void geometry(
       List<GeoPoint> coords,
       AnswerType kind,

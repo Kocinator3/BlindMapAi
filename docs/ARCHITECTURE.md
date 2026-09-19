@@ -26,3 +26,10 @@ Line precision and coverage use 160 arc-length samples each direction and a harm
 
 ## Build discipline
 Run Flutter commands sequentially in a shared checkout. Integration tests can regenerate plugin registrants and must not overlap release builds. Native CI uses separate OS jobs. Runtime core never downloads maps or levels. Builds and dependency setup require network only during development.
+
+## Level options and randomized sessions (2026-09-19)
+Schema v1 adds optional `hardcoreMode` (boolean, default false), `toleranceMultiplier` (0.25..4, default 1), and `map.showRivers` / `map.showCities` (booleans, default true). Older levels migrate by defaults; export emits explicit values. New fields are validated before domain construction and preserved by JSON/visual editing. Distance scoring multiplies question tolerance for point, multipoint and polyline; area overlap is unchanged.
+
+Each GameplayPage shuffles a copy of its questions once. Original JSON/editor order remains intact; each session asks each question at most once. An injected Random supports deterministic transition tests. Hardcore permits feedback but cannot advance to another question after a score below 700. Results offer a fresh randomized timed challenge (90 seconds per question) and up to five lowest-scoring answered questions from this session as untimed practice with hardcore disabled. Other settings are preserved. Historical results are unchanged; current best-score storage still aggregates records per session and does not partition by tolerance or mode.
+
+MapCanvas.loadLand attaches independent bundled context to the returned land dataset. Context contains European rivers and worldwide city markers (see DATA_SOURCES.md); city shapes distinguish national capitals without labels. Touch point dragging navigates without creating an answer draft. Pinch uses the geographic focal anchor and rebases when pointer count changes; drawing/navigation remains latched until all fingers lift.

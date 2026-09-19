@@ -18,7 +18,12 @@ void main() {
     expect(find.text('SlepáMapa'), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, 'Play').first);
     await tester.pumpAndSettle();
-    expect(find.text('Kde leží Praha?'), findsOneWidget);
+    expect(
+      store.bundled.first.questions.where(
+        (q) => find.text(q.prompt).evaluate().isNotEmpty,
+      ),
+      hasLength(1),
+    );
     expect(find.text('Confirm answer'), findsOneWidget);
     final map = find.byType(MapCanvas);
     await tester.tapAt(tester.getCenter(map));

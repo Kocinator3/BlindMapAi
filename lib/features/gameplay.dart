@@ -17,6 +17,7 @@ class GameplayPage extends StatefulWidget {
   final List<List<GeoPoint>> land;
   final GameMode mode;
   final bool preview;
+  final math.Random? random;
   const GameplayPage({
     super.key,
     required this.level,
@@ -24,6 +25,7 @@ class GameplayPage extends StatefulWidget {
     required this.land,
     this.mode = GameMode.learning,
     this.preview = false,
+    this.random,
   });
   @override
   State<GameplayPage> createState() => _GameplayPageState();
@@ -38,7 +40,39 @@ class _GameplayPageState extends State<GameplayPage> {
   late final String session = DateTime.now().microsecondsSinceEpoch.toString();
   Timer? timer;
   String tr(String cs, String en) => widget.store.language == 'cs' ? cs : en;
-  Question get question => widget.level.questions[index];
+  late final List<Question> questions = widget.level.shuffledQuestions(
+    widget.random,
+  );
+  final List<(Question, int)> attempts = [];
+  bool get hardcoreFailed =>
+      widget.level.hardcore && result != null && result!.points < 700;
+  Question get question => questions[index];
+
+  void replay({required bool weakest}) {
+    final ranked = List<(Question, int)>.of(attempts)
+      ..sort((a, b) => a.$2.compareTo(b.$2));
+    final selected = weakest
+        ? ranked.take(math.min(5, ranked.length)).map((a) => a.$1).toList()
+        : widget.level.questions;
+    final level = LevelCodec().fromJson({
+      ...widget.level.toJson(),
+      if (weakest) 'hardcoreMode': false,
+      'questions': selected.map((q) => q.toJson()).toList(),
+    });
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute<void>(
+        builder: (_) => GameplayPage(
+          level: level,
+          store: widget.store,
+          land: widget.land,
+          mode: weakest ? GameMode.practice : GameMode.challenge,
+          preview: widget.preview,
+        ),
+      ),
+    );
+  }
+
   bool get touchPlatform =>
       Theme.of(context).platform == TargetPlatform.android ||
       Theme.of(context).platform == TargetPlatform.iOS;
@@ -83,9 +117,8 @@ class _GameplayPageState extends State<GameplayPage> {
           !busy) {
         if (remaining > 0) {
           setState(() => remaining--);
-        } else {
-          submit(timedOut: true);
         }
+        if (remaining == 0) submit(timedOut: true);
       }
     });
   }
@@ -121,7 +154,11 @@ class _GameplayPageState extends State<GameplayPage> {
       }
       final scored = timedOut
           ? const ScoreResult(0)
-          : scoreAnswer(question, geometry);
+          : scoreAnswer(
+              question,
+              geometry,
+              toleranceMultiplier: widget.level.toleranceMultiplier,
+            );
       if (!widget.preview) {
         await widget.store.record(
           session: session,
@@ -133,6 +170,7 @@ class _GameplayPageState extends State<GameplayPage> {
       if (mounted) {
         setState(() {
           result = scored;
+          attempts.add((question, scored.points));
           total += scored.points;
           combo = scored.points >= 700 ? combo + 1 : 0;
         });
@@ -167,6 +205,13 @@ class _GameplayPageState extends State<GameplayPage> {
           ],
         ),
       ),
+      if (widget.level.hardcore)
+        Text(
+          tr(
+            'Hardcore: pod 700 bodů končíš',
+            'Hardcore: below 700 points ends the run',
+          ),
+        ),
       Text(
         question.prompt,
         maxLines: compact ? 3 : null,
@@ -264,7 +309,7 @@ class _GameplayPageState extends State<GameplayPage> {
           ? (points.isEmpty ? null : submit)
           : () {
               setState(() {
-                if (index == widget.level.questions.length - 1) {
+                if (hardcoreFailed || index == questions.length - 1) {
                   done = true;
                 } else {
                   index++;
@@ -298,7 +343,25 @@ class _GameplayPageState extends State<GameplayPage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.emoji_events_outlined, size: 80),
+                  Icon(
+                    hardcoreFailed
+                        ? Icons.flag_outlined
+                        : Icons.emoji_events_outlined,
+                    size: 80,
+                  ),
+                  if (hardcoreFailed)
+                    Text(
+                      tr(
+                        'Hardcore: první chyba ukončila úroveň.',
+                        'Hardcore: the first mistake ended the level.',
+                      ),
+                    ),
+                  Text(
+                    tr(
+                      'Zodpovězeno ${attempts.length} / ${questions.length}',
+                      'Answered ${attempts.length} / ${questions.length}',
+                    ),
+                  ),
                   Text(
                     '$total / ${widget.level.questions.length * 1000}',
                     style: Theme.of(context).textTheme.displaySmall,
@@ -318,6 +381,37 @@ class _GameplayPageState extends State<GameplayPage> {
                     ),
                   ),
                   const SizedBox(height: 24),
+                  Wrap(
+                    spacing: 12,
+                    runSpacing: 8,
+                    alignment: WrapAlignment.center,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () => replay(weakest: false),
+                        icon: const Icon(Icons.timer_outlined),
+                        label: Text(tr('Časová výzva', 'Timed challenge')),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: attempts.isEmpty
+                            ? null
+                            : () => replay(weakest: true),
+                        icon: const Icon(Icons.replay),
+                        label: Text(
+                          tr(
+                            'Procvičit nejslabší lokace',
+                            'Practice weakest locations',
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Text(
+                    tr(
+                      'Výzva: 90 s na otázku. Procvičování: až 5 nejslabších odpovědí z tohoto kola, bez hardcore.',
+                      'Challenge: 90 s per question. Practice: up to 5 weakest answers from this run, without hardcore.',
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   FilledButton(
                     onPressed: () => Navigator.pop(context),
                     child: Text(tr('Zpět na úvod', 'Back home')),

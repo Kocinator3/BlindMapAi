@@ -299,6 +299,7 @@ class _HomePageState extends State<HomePage> {
                   id: item.$1.id,
                   title: item.$1.title,
                   map: item.$1.map,
+                  toleranceMultiplier: item.$1.toleranceMultiplier,
                   questions: [item.$2],
                 ),
               ),

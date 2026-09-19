@@ -1,48 +1,39 @@
-# Project state — 2026-09-13 senior review
+# Project state — 2026-09-19 gameplay and blind-map milestone
 
 ## Resume here
-Read AGENTS.md, this file, ROADMAP.md, KNOWN_ISSUES.md, Git status/diff and recent history. Flutter/Dart are at `/tmp/slepamapa-flutter/bin/` (not on PATH). The current responsive gameplay milestone is the highest-priority work; this remains a pre-release. The source milestone is complete, but this session's `.git` index is read-only; use the manual commit command below when Git is writable.
+Read AGENTS.md, this file, ROADMAP.md, KNOWN_ISSUES.md, Git status/diff and recent history. Flutter/Dart are at `/tmp/slepamapa-flutter/bin/` (not on PATH). The SDK was missing at session start and restored at 3.47.4. Android SDK is `/opt/android-sdk`. This remains a pre-release.
 
-## Review scope and starting state
-The checkout was clean at `6cdd082`. Git is writable; loopback tests and Linux native integration work without permission workarounds. The prior memory's dirty-tree/sandbox claims were stale.
+## Starting state and preserved work
+Started at `330ec83` (responsive gameplay commit), with only untracked `test/gameplay_responsive_test.dart`. Read the previous review/memory and inspected status/diff/history; all 69 baseline tests passed. Preserved that responsive test file. Previous memory's conflicting Git state and artifact information were stale.
 
-Git contains no explicit Astra/Luna attribution. Conservatively reviewed all changes after implementation baseline `aee5dfd`: `14ee40a`, `042a04c` and `6cdd082`, plus current map, gameplay, geometry, validation, scoring, persistence, authoring, AI, changed data/schema, platform export, CI, scripts and tests. See REVIEW_2026-09-13.md.
+## User-approved scope and behavior
+- Every new gameplay session shuffles a copy of its question list once, without duplicates. JSON/editor order is unchanged. Type/geometry continue to determine interaction, independent of shuffled index or names.
+- Per-level `hardcoreMode` ends a run after the first answer below 700/1000 (feedback first, then Results; no next question). This matches the existing successful-combo threshold.
+- `toleranceMultiplier` (0.25..4, default 1) multiplies distance tolerance for point, multipoint and polyline questions. Area overlap scoring is unchanged and the editor explains this.
+- Both settings survive visual edits, JSON Apply/save/export/import, and copied AI instructions. Optional schema-v1 fields preserve old levels via defaults; malformed new fields are rejected.
+- Results offer a fresh timed challenge (90 seconds per question; fixed the previous extra second) and randomized practice of up to five lowest-scoring answered questions from that run. Practice disables hardcore and preserves tolerance/map settings. Existing home mistake practice also preserves tolerance.
+- Offline context contains 357 European river segments and 3,645 worldwide city markers. European places plus worldwide places with source population >=100,000 and all national capitals. Ordinary cities: circles; national capitals: pentagons, with legend. No names or question-derived highlights. `map.showRivers` and `map.showCities` are editable and persisted. Source scope/provenance/reproduction are in DATA_SOURCES.md and scripts/build_context_map.py.
+- Touch point/multipoint dragging now pans without creating a draft. Pinch zoom anchors at the focal geography, rebases when pointer count changes, and preserves the two-finger navigation latch until all fingers lift. Desktop and drawing regressions remain covered.
 
-## Interaction milestone
-- Retained 6 px desktop click/drag threshold; removed shared cross-device click suppression.
-- Polygon/freehand/circle left-drag draws areas; Space/middle pan creates no geometry. Polygon vertex-click authoring remains available.
-- Two-finger input discards the draft and latches navigation until all fingers lift. River traces stay open; only area strokes close.
-- Type/viewport updates reset tool, draft, selection, mouse/touch gesture fields and history. Gameplay uses a fresh keyed map per question. Read-only transitions cancel input without resetting the viewport.
-- Cancellation, Clear and undo abandon active strokes. Closed-ring editing exposes unique vertex handles.
-- Mobile area/line hints explain one-finger drawing and two-finger navigation.
-- Regression tests check visible drafts, actual pan/zoom, pinch suppression, cancellation, tool/history reset, requested transitions and both bundled mountain questions through confirmation.
+## Verification
+- Baseline 69 tests passed before behavior changes.
+- Final complete suite: all 79 tests passed, including the end-to-end randomized run and weakest-ranking check.
+- `dart format .` clean; `flutter analyze --no-pub` clean.
+- All 3 Linux native integration flows passed, including real context loading/rendering and authoring/import. Inspected `/tmp/slepamapa-area-review.png`: rivers and circle/pentagon markers render correctly.
+- Regression coverage includes randomized permutation/unchanged source order, malformed/new/legacy JSON settings, distance multiplier scoring, editor controls/preservation, hardcore termination, replay and exact timeout, touch pan/pinch/cancel/reset, continental coverage/capital classification, and context toggles.
+- Android and final Linux release builds passed after `flutter clean` resolved a stale GeneratedPluginRegistrant reference to integration_test left by native testing. APK: `build/app/outputs/flutter-apk/app-release.apk` (55,660,884 bytes, development-signed). Linux: `build/linux/x64/release/bundle/slepa_mapa`. Packaged distribution: `dist/slepamapa-linux-x64.tar.gz` (11,322,449 bytes), with executable, map context, LICENSE, README and DATA_SOURCES verified.
+- No Android device/emulator is connected. Android runtime gestures, lifecycle and file chooser remain unverified on a physical device. Windows build was attempted and Flutter reported `"build windows" only supported on Windows hosts`; use the existing Windows CI/job on a Windows host.
 
-## Validation
-Baseline: 34 tests passed, but new checks reproduced four failures. Interaction milestone: format clean, analyze clean, 45 tests and 3 Linux native integration flows pass. Native capture inspection additionally exposed the lost first stroke corner, now covered by geometry assertions. See REVIEW_2026-09-13.md.
+## Review and next priorities
+New settings are additive; old history is not rescored. Best scores still aggregate sessions without distinguishing tolerance/mode or requiring completion; address that fairness issue in a future approved cycle. Rivers outside Europe, lakes, full map viewport editing, source-backed mountain outlines, large-text accessibility and complete localization remain open. See KNOWN_ISSUES.md.
 
-## Next priority
-Audit large-text/small-landscape accessibility, Android document export/lifecycle, and Windows CI execution. Responsive gameplay is the current uncommitted milestone; desktop polygon is `48108ce`, authoring is `38f0fdc`, concurrency is `f26e239`, area fairness is `efcfc6d`.
+Prior stable reviews retained: `0d45a8f` interaction reset; `48108ce` desktop polygon authoring; `38f0fdc` authoring preservation; `f26e239` serialized persistence; `efcfc6d` thin/concave area-overlap fairness; `2c330c7` transactional settings; `330ec83` responsive gameplay. See REVIEW_2026-09-13.md for original audit details.
 
-## Responsive gameplay milestone
-Gameplay now uses a compact contextual toolbar distinct from the level editor: POINT exposes Clear and Recenter; area/polyline questions expose Undo, Clear and Recenter. A compact landscape side panel contains progress, prompt, instructions and Confirm while the map occupies the remaining majority of the screen. Portrait uses compact summaries and an Expanded map. Responsive tests cover 360×800 portrait, 800×360 landscape, 600×1000 portrait and 1200×800 desktop, including control visibility, map dimensions and overflow checks. Format/analyze clean; 69 tests and 3 Linux integration flows pass. Android APK and Linux artifacts were rebuilt after this change.
+## Git handoff
+The milestone could not be staged: `.git/index.lock` creation failed with `Read-only file system`. No retries or permission workarounds were attempted; source changes remain in the worktree. The existing untracked responsive regression test is intentionally included in the handoff. Do not push.
 
-## Settings persistence milestone
-Theme, language and provider settings now use a serialized update API with allowlisting and rollback on save failure. AI generation uses the same path and checks cancellation before sending. One regression covers failure rollback and successful secret filtering. This milestone is committed as `2c330c7`.
-
-## Area fairness milestone
-Reproduced exact thin concave regions scoring zero and replaced fixed-grid sampling with projected polygon cross-section intersection. Seven tests cover thin/nested/reversed rings, slanted crossings, 200 analytical rectangles, near-capacity concave symmetry and antimeridian/high-latitude cases. The projection and sqrt(IoU) curve are unchanged; historical results are not rescored. Format/analyze clean; 64 tests and 3 Linux native flows pass. Linux release rebuilt successfully at `build/linux/x64/release/bundle/slepa_mapa`.
-
-## Persistence concurrency milestone
-Serialize authored put/delete/record mutations through persistence and rollback, not just filesystem writes. Four failing regressions reproduced rollback erasing a later put, resurrecting a deleted level, lost duplicate retries and cross-level record collisions. Five tests now cover those cases and durable reload after a failed write. Record identity includes level/session/question. Settings use the same transactional update path.
-
-## Authoring preservation milestone
-Complete draft snapshots protect level descriptions/settings, question details/geometry and JSON text. Unchanged imported seeds still require saving or explicit discard. Visual save and JSON Apply preserve level ID, tags and difficulty. Six regression tests cover loss reproduction, reversion, import guarding and canonical JSON-to-visual save. Format/analyze clean; 51 tests and 3 Linux native flows pass. Interaction milestone is committed as `0d45a8f`.
-
-## Platform/release status
-No Android emulator/device is available in this environment. The current release artifacts are `build/app/outputs/flutter-apk/app-release.apk` (55,150,508 bytes, development-signed), `build/linux/x64/release/bundle/slepa_mapa` (24,048 bytes), and `dist/slepamapa-linux-x64.tar.gz` (11,036,947 bytes). The tar package includes LICENSE, README.md and DATA_SOURCES.md. The Linux integration suite passes; direct GUI smoke launch was attempted but this shell has no usable display. Production Android signing, Windows builds, accessibility/localization and source-backed teaching geography remain open. The SDK in /tmp may be cleaned by the OS.
-
-## Manual commit handoff
-This session could not create `.git/index.lock` because `.git` is read-only. When the repository is writable, run: `git add docs/ARCHITECTURE.md docs/KNOWN_ISSUES.md docs/PROJECT_STATE.md lib/features/gameplay.dart lib/map/map_canvas.dart test/map_regression_test.dart test/gameplay_responsive_test.dart && git commit -m "fix: make gameplay layout responsive and contextual"`. Do not push automatically.
-
-## Git workflow
-Commit focused verified milestones locally; do not push. If a future sandbox makes Git read-only, preserve all work and document exact manual git add/commit commands. No current Git permission blocker exists.
+Run when Git is writable:
+```sh
+git add docs/ARCHITECTURE.md docs/DATA_SOURCES.md docs/KNOWN_ISSUES.md docs/PROJECT_STATE.md docs/ROADMAP.md docs/level.schema.json assets/maps/context.json scripts/build_context_map.py lib/data/ai_service.dart lib/domain/level.dart lib/domain/scoring.dart lib/features/editor.dart lib/features/gameplay.dart lib/features/home.dart lib/map/map_canvas.dart test/drawing_test.dart test/editor_regression_test.dart test/map_regression_test.dart test/widget_test.dart test/fixed_order_random.dart test/gameplay_responsive_test.dart test/level_options_test.dart test/map_context_test.dart integration_test/app_test.dart
+git commit -m "feat: randomize gameplay and add level challenges and offline map context"
+```

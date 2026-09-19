@@ -150,7 +150,11 @@ void main() {
     await tester.tap(find.text('Apply question'));
     await tester.pumpAndSettle();
     expect(find.byType(LevelEditor), findsOneWidget);
-    await tester.ensureVisible(find.text('Save level'));
+    await tester.scrollUntilVisible(
+      find.text('Save level'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('Save level'));
     await tester.pumpAndSettle();
     expect(store.custom.length, 1);
@@ -167,7 +171,11 @@ void main() {
     await tester.enterText(find.byType(TextField), second.encode());
     await tester.tap(find.text('Validate and apply'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Save level'));
+    await tester.scrollUntilVisible(
+      find.text('Save level'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('Save level'));
     await tester.pumpAndSettle();
     expect(store.custom.length, 2);

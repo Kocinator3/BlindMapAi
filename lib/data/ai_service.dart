@@ -23,8 +23,12 @@ polygon, freehandArea and circle use Polygon with ONE exterior ring, no holes.
 Close polygon rings by repeating the first coordinate. No crossings or zero-area polygons.
 At most 100 questions, 500 vertices per question; regional polygons under 3500 km extent.
 Scoring: toleranceKm is a finite number from 0.1 to 2000; use 30 for cities, 15–30 for regional rivers.
+Level settings: hardcoreMode is a boolean (default false); an answer below 700/1000 ends a hardcore session.
+toleranceMultiplier is a finite number 0.25..4 (default 1), multiplying toleranceKm for point, multiPoint and polyline only. Area overlap scoring is unchanged.
+Questions play in random order without repetition. Each prompt must stand alone, never refer to question numbers or preceding answers.
+Map showCountryBorders, showRivers and showCities are booleans (default true). Rivers and city dots are unlabeled offline context, rivers currently cover Europe and major cities cover all inhabited continents; City circles mark ordinary cities; pentagons mark national capitals. Never put names or answer highlights in map layers.
 Map center is [longitude, latitude]; longitudeSpan is 0.1..160 degrees.
-Do not invent uncertain geographic details. Explain approximations and set unverified=true.
+Do not invent uncertain geographic details. Explain approximations. ALWAYS set unverified=true.
 AI geography always requires human review. Do not include API keys or provider settings.
 Follow this exact JSON schema:
 $schema

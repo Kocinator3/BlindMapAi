@@ -26,6 +26,63 @@ Future<void> openEditor(WidgetTester tester, Widget page) async {
 }
 
 void main() {
+  testWidgets(
+    'level settings controls persist hardcore, tolerance and map layers',
+    (tester) async {
+      final store = AppStore()..language = 'en';
+      final level = Level(
+        id: 'settings',
+        title: 'Settings',
+        questions: [
+          Question(
+            id: 'q',
+            prompt: 'Place',
+            answerType: AnswerType.point,
+            geometry: Geometry('Point', [
+              [const GeoPoint(15, 50)],
+            ]),
+          ),
+        ],
+      );
+      await openEditor(
+        tester,
+        LevelEditor(store: store, land: const [], level: level),
+      );
+      for (final label in [
+        'Hardcore mode',
+        'Unlabeled rivers',
+        'Unlabeled cities',
+      ]) {
+        await tester.scrollUntilVisible(
+          find.text(label),
+          180,
+          scrollable: find.byType(Scrollable).first,
+        );
+        await tester.tap(find.text(label));
+        await tester.pump();
+      }
+      await tester.scrollUntilVisible(
+        find.byType(Slider),
+        -150,
+        scrollable: find.byType(Scrollable).first,
+      );
+      tester.widget<Slider>(find.byType(Slider)).onChanged!(2.5);
+      await tester.pump();
+      await tester.scrollUntilVisible(
+        find.text('Save level'),
+        250,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.tap(find.text('Save level'));
+      await tester.pumpAndSettle();
+      final restored = LevelCodec().decode(store.custom.single.encode());
+      expect(restored.hardcore, true);
+      expect(restored.toleranceMultiplier, 2.5);
+      expect(restored.map.rivers, false);
+      expect(restored.map.cities, false);
+    },
+  );
+
   testWidgets('unsaved imported level remains guarded without further edits', (
     tester,
   ) async {
@@ -67,6 +124,9 @@ void main() {
         id: 'json-id',
         title: 'Imported metadata',
         difficulty: 'expert',
+        hardcore: true,
+        toleranceMultiplier: 2.25,
+        map: const MapConfig(cities: false, rivers: false),
         tags: ['tag'],
         questions: [
           Question(
@@ -84,7 +144,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(LevelEditor), findsOneWidget);
       expect(find.text('Discard unsaved changes?'), findsNothing);
-      await tester.ensureVisible(find.text('Save level'));
+      await tester.scrollUntilVisible(
+        find.text('Save level'),
+        250,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.tap(find.text('Save level'));
       await tester.pumpAndSettle();
       expect(store.custom.single.toJson(), level.toJson());
@@ -114,7 +178,11 @@ void main() {
       LevelEditor(store: store, land: const [], level: level),
     );
     await tester.enterText(find.byType(TextField).first, 'Changed');
-    await tester.ensureVisible(find.text('Save level'));
+    await tester.scrollUntilVisible(
+      find.text('Save level'),
+      250,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.tap(find.text('Save level'));
     await tester.pumpAndSettle();
     final saved = store.custom.single;
