@@ -1,4 +1,4 @@
-"""Build unlabeled European rivers and worldwide city context from downloaded Natural Earth files.
+"""Build unlabeled worldwide river and city context from downloaded Natural Earth files.
 Usage: python scripts/build_context_map.py rivers.geojson cities.geojson
 No question/answer geometries are used. Source attribution: docs/DATA_SOURCES.md.
 """
@@ -19,9 +19,8 @@ for feature in json.loads(Path(sys.argv[1]).read_text())['features']:
     parts = ([geometry['coordinates']] if geometry['type'] == 'LineString'
              else geometry['coordinates'] if geometry['type'] == 'MultiLineString' else [])
     for part in parts:
-        # Keep entire intersecting source lines, avoiding artificial joins.
-        if any(inside(p) for p in part):
-            rivers.append([[round(p[0], 5), round(p[1], 5)] for p in part])
+        # Keep every source part worldwide, avoiding artificial joins.
+        rivers.append([[round(p[0], 5), round(p[1], 5)] for p in part])
 cities = []
 for feature in json.loads(Path(sys.argv[2]).read_text())['features']:
     geometry = feature['geometry']

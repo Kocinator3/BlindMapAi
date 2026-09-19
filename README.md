@@ -44,6 +44,29 @@ flutter build windows --release
 
 Distribute all of `build/windows/x64/runner/Release/`, including `slepa_mapa.exe`, DLLs and data. Windows binaries cannot be built by the Linux host.
 
+## GitHub Release (Linux host)
+
+`scripts/release.sh` runs analysis/tests, builds a fresh Android APK and Linux x64
+archive, adds SHA-256 checksums, and uploads them with GitHub CLI (`gh`).
+Requires the Android and Linux build prerequisites above and `gh auth login`.
+Commit all changes first, including the desired version in `pubspec.yaml`.
+Then create and push a tag pointing to that commit:
+
+```bash
+git tag v0.1.0
+git push origin tag v0.1.0
+FLUTTER_BIN=/path/to/flutter/bin/flutter bash scripts/release.sh v0.1.0 --prerelease
+```
+
+This publishes immediately. Add `--draft` to upload a draft instead. The script
+does not push Git refs and refuses a dirty checkout, a remote tag that does not
+point to HEAD, or an existing release. It uses the `origin` repository explicitly.
+Assets are also saved in `dist/<tag>/`. Windows binaries need a separate Windows
+build. Android still uses development signing as described above.
+If an upload fails after creating a release, inspect its draft/assets on GitHub;
+the script intentionally does not overwrite or delete an existing release.
+CLI options: [gh release create manual](https://cli.github.com/manual/gh_release_create).
+
 ## Play and author
 Choose a pack and mode. On desktop, click to place points or river vertices; drag beyond 6 logical pixels to pan. For polygon/freehand/circle answers, drag to draw an area; hold Space or the middle mouse button to pan temporarily. The wheel zooms. On touch devices, trace lines/areas with one finger and pan/zoom with two fingers. Polygon vertex clicks remain available for authoring. Confirm reveals the reference (orange squares) beside your attempt (blue circles). Ctrl+Z undoes, Ctrl+Y or Ctrl+Shift+Z redoes, Escape cancels back to Draw, and Delete clears.
 

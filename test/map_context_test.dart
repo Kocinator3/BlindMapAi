@@ -7,6 +7,38 @@ import 'package:slepa_mapa/map/map_canvas.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   test(
+    'offline rivers cover all inhabited continents with valid open parts',
+    () async {
+      final land = await MapCanvas.loadLand();
+      final rivers = MapContext.forLand(land).rivers;
+      expect(rivers.length, greaterThan(2000));
+      for (final line in rivers) {
+        expect(line.length, greaterThanOrEqualTo(2));
+        for (final point in line) {
+          expect(point.lon.isFinite && point.lat.isFinite, isTrue);
+          expect(point.lon, inInclusiveRange(-180, 180));
+          expect(point.lat, inInclusiveRange(-90, 90));
+        }
+      }
+      for (final reference in [
+        ('Danube', const GeoPoint(18.99, 45.38)),
+        ('Nile', const GeoPoint(31.16, 27.22)),
+        ('Yangtze', const GeoPoint(112.94, 29.48)),
+        ('Mississippi', const GeoPoint(-89.48, 36.45)),
+        ('Amazon', const GeoPoint(-60.0, -3.1)),
+        ('Murray', const GeoPoint(139.93, -34.15)),
+      ]) {
+        expect(
+          rivers
+              .expand((line) => line)
+              .any((point) => distanceKm(point, reference.$2) < 30),
+          isTrue,
+          reason: '${reference.$1} must be present in the offline river layer',
+        );
+      }
+    },
+  );
+  test(
     'offline city data cover inhabited continents and distinguish capitals',
     () async {
       final land = await MapCanvas.loadLand();
