@@ -67,6 +67,27 @@ void main() {
       }
     },
   );
+  test(
+    'lake context preserves islands and worldwide source coverage',
+    () async {
+      final land = await MapCanvas.loadLand();
+      final lakes = MapContext.forLand(land).lakes;
+      expect(lakes.length, 1366);
+      expect(lakes.where((p) => p.length > 1), isNotEmpty);
+      for (final reference in [
+        const GeoPoint(-87, 47),
+        const GeoPoint(33, -1),
+        const GeoPoint(108, 53),
+      ]) {
+        expect(
+          lakes
+              .expand((p) => p.first)
+              .any((p) => distanceKm(p, reference) < 250),
+          isTrue,
+        );
+      }
+    },
+  );
   testWidgets('map receives offline context and honors both layer toggles', (
     tester,
   ) async {
@@ -77,7 +98,11 @@ void main() {
           home: Scaffold(
             body: MapCanvas(
               land: land!,
-              config: MapConfig(rivers: visible, cities: visible),
+              config: MapConfig(
+                rivers: visible,
+                cities: visible,
+                lakes: visible,
+              ),
               type: AnswerType.point,
               points: const [],
               onChanged: (_) {},
@@ -99,6 +124,8 @@ void main() {
           .painter;
       expect(painter.showCities, visible);
       expect(painter.showRivers, visible);
+      expect(painter.showLakes, visible);
+      expect((painter.context as MapContext).lakes.length, greaterThan(1300));
       expect((painter.context as MapContext).cities, isNotEmpty);
       expect(
         find.text('○ city · ⬠ capital · Natural Earth'),

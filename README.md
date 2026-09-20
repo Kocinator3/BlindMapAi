@@ -72,7 +72,24 @@ Choose a pack and mode. On desktop, click to place points or river vertices; dra
 
 My Levels → Create level → Add question opens the visual map editor. Preview plays without changing progress. Save validates geometry. JSON provides import, clipboard exchange, desktop file export and Android document export. Content language is separate from the UI language.
 
-AI is optional. Copy prompt works without a connection. API generation sends concepts and the schema only when requested. Use an HTTPS compatible `/v1` base URL, or an HTTP loopback endpoint for a local model. Keys live only in memory for the open settings page. Responses are bounded, parsed, validated and marked unverified before review.
+In the level editor, **Choose rivers, lakes and cities** opens the offline catalog.
+Search names (including some Czech aliases), country or ID; filter by type; check
+objects and inspect the map preview. Apply adds one question per checked part:
+cities as points, rivers as lines and lakes as exterior polygons. Mountains keep
+the existing polygon editor. The lake layer has its own visibility toggle.
+River segments and separate lake parts remain separate. Long geometries are
+simplified to 500 vertices; lake islands are visible but not subtracted in scoring.
+
+The AI page uses the same selector. Check the desired objects **before copying
+the prompt or generating**; the prompt includes their names, IDs, types and
+centers. AI returns `catalogId` references and localized question text. API
+responses and JSON imports resolve references from bundled data before canonical
+validation; any AI geometry for those references is replaced. Unknown/duplicate
+IDs are rejected, and API generation requires the complete checked selection.
+**Create from selection without AI** opens the same source-backed draft offline.
+Saved/exported Level v1 JSON always embeds full geometry, with no lookup required.
+
+AI is optional. Copy prompt works without a connection. API generation sends concepts, the checked catalog list and the schema only when requested. Use an HTTPS compatible `/v1` base URL, or an HTTP loopback endpoint for a local model. Keys live only in memory for the open settings page. Responses are bounded, parsed, validated and marked unverified before review.
 
 ## Checks and CI
 

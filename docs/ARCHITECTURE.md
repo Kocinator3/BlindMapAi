@@ -33,3 +33,25 @@ Schema v1 adds optional `hardcoreMode` (boolean, default false), `toleranceMulti
 Each GameplayPage shuffles a copy of its questions once. Original JSON/editor order remains intact; each session asks each question at most once. An injected Random supports deterministic transition tests. Hardcore permits feedback but cannot advance to another question after a score below 700. Results offer a fresh randomized timed challenge (90 seconds per question) and up to five lowest-scoring answered questions from this session as untimed practice with hardcore disabled. Other settings are preserved. Historical results are unchanged; current best-score storage still aggregates records per session and does not partition by tolerance or mode.
 
 MapCanvas.loadLand attaches independent bundled context to the returned land dataset. Context contains European rivers and worldwide city markers (see DATA_SOURCES.md); city shapes distinguish national capitals without labels. Touch point dragging navigates without creating an answer draft. Pinch uses the geographic focal anchor and rebases when pointer count changes; drawing/navigation remains latched until all fingers lift.
+
+## Source-backed authoring
+
+`assets/maps/catalog.json` is a versioned, bundled Natural Earth feature catalog.
+`FeatureCatalog` loads its names/aliases and geometry; `CatalogPicker` provides
+search, type filters, checkboxes and a read-only map preview for both the level
+editor and AI author. Runtime networking is never needed for lookup.
+
+AI prompts contain only the checked manifest (up to 100 objects), not the entire
+11,149-entry catalog. Authoring input may use a question `catalogId` shorthand.
+`LevelCodec.parse` bounds and parses input; an injected catalog expands references
+before the usual canonical validation. Geometry, answer type, source category and
+provenance tags come from the catalog, while question text/hints remain editable.
+The API path additionally checks the exact selected ID set. JSON import resolves
+the same references. Unknown and duplicate references fail explicitly. Ordinary
+JSON import does not need to load the catalog.
+
+Saved/exported levels remain self-contained schema-v1 JSON with full geometry;
+`catalogId` is never persisted as a runtime dependency. `map.showLakes` is an
+optional boolean defaulting to true, like the other map-layer toggles. Polygon
+scoring semantics remain unchanged: lake questions use only exterior rings and
+are marked unverified, while background lake rendering preserves island holes.

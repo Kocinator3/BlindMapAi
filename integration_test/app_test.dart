@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:slepa_mapa/data/store.dart';
+import 'package:slepa_mapa/data/feature_catalog.dart';
 import 'package:slepa_mapa/domain/level.dart';
 import 'package:slepa_mapa/features/editor.dart';
 import 'package:slepa_mapa/features/gameplay.dart';
@@ -17,6 +18,107 @@ import 'package:slepa_mapa/map/map_canvas.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets(
+    'native catalog selection creates source-backed canonical questions',
+    (tester) async {
+      final catalog = await FeatureCatalog.load();
+      final land = await MapCanvas.loadLand();
+      final store = AppStore()..language = 'en';
+      final selected = [
+        for (final kind in ['city', 'river', 'lake'])
+          catalog.features.firstWhere((f) => f.kind == kind),
+      ];
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LevelEditor(store: store, land: land),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.widgetWithText(TextField, 'Level title'),
+        'Catalog level',
+      );
+      await tester.scrollUntilVisible(
+        find.text('Choose rivers, lakes and cities'),
+        250,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await Scrollable.ensureVisible(
+        tester.element(find.text('Choose rivers, lakes and cities')),
+        alignment: 0.5,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Choose rivers, lakes and cities'));
+      await tester.pumpAndSettle();
+      for (final f in selected) {
+        await tester.tap(find.byType(TextField));
+        await tester.pumpAndSettle();
+        await tester.enterText(find.byType(TextField), f.id);
+        await tester.pumpAndSettle();
+        expect(find.byType(CheckboxListTile), findsOneWidget);
+        expect(
+          tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).key,
+          ValueKey(f.id),
+        );
+        expect(
+          tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value,
+          isFalse,
+        );
+        await tester.tap(
+          find.descendant(
+            of: find.byType(CheckboxListTile),
+            matching: find.byType(Checkbox),
+          ),
+        );
+        await tester.pumpAndSettle();
+        expect(
+          find.byType(MapCanvas),
+          findsOneWidget,
+          reason:
+              'Preview for ${f.id}; selection ${tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value}',
+        );
+        await tester.pumpAndSettle();
+        expect(
+          tester.widget<MapCanvas>(find.byType(MapCanvas)).target!.toJson(),
+          f.geometry.toJson(),
+        );
+        await tester.tap(find.byTooltip('Close preview'));
+        await tester.pumpAndSettle();
+      }
+      await tester.tap(find.text('Apply (3/100)'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('JSON'));
+      await tester.pumpAndSettle();
+      final text = tester
+          .widget<TextField>(find.byType(TextField))
+          .controller!
+          .text;
+      final level = LevelCodec().decode(text);
+      expect(level.questions.length, 3);
+      expect(level.unverified, isTrue);
+      for (var i = 0; i < selected.length; i++) {
+        expect(
+          level.questions[i].geometry.toJson(),
+          selected[i].geometry.toJson(),
+        );
+      }
+      // External AI uses the same offline reference resolver as API generation.
+      await tester.enterText(
+        find.byType(TextField),
+        '{"schemaVersion":1,"id":"imported","title":"Lake","questions":[{"catalogId":"${selected.last.id}","prompt":"Mark the lake"}]}',
+      );
+      await tester.tap(find.text('Format and validate'));
+      await tester.pumpAndSettle();
+      final resolved = LevelCodec().decode(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      );
+      expect(
+        resolved.questions.single.geometry.toJson(),
+        selected.last.geometry.toJson(),
+      );
+      expect(tester.takeException(), isNull);
+    },
+  );
   testWidgets('native mountain strokes, temporary pan and question reset', (
     tester,
   ) async {

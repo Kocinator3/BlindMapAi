@@ -3,6 +3,8 @@ import 'package:flutter/services.dart';
 
 import '../data/ai_service.dart';
 import '../data/store.dart';
+import '../data/feature_catalog.dart';
+import 'catalog_picker.dart';
 import '../domain/geo.dart';
 import '../domain/level.dart';
 import 'editor.dart';
@@ -29,6 +31,7 @@ class _AiPageState extends State<AiPage> {
     text: widget.store.provider['name'] as String? ?? 'Compatible API',
   );
   late int timeout = widget.store.provider['timeout'] as int? ?? 60;
+  List<CatalogFeature> selected = [];
   String contentLanguage = 'cs';
   final key = TextEditingController();
   final provider = CompatibleAiProvider();
@@ -48,11 +51,57 @@ class _AiPageState extends State<AiPage> {
     super.dispose();
   }
 
-  Future<String> prompt() async => AiPromptService().generate(
-    concepts: concepts.text,
-    language: contentLanguage,
-    schema: await rootBundle.loadString('docs/level.schema.json'),
-  );
+  Future<String> prompt() async {
+    final catalog = await FeatureCatalog.load();
+    return AiPromptService().generate(
+      concepts: concepts.text,
+      language: contentLanguage,
+      schema: await rootBundle.loadString('docs/level.schema.json'),
+      catalogManifest: catalog.manifest(selected),
+      selectionRequired: selected.isNotEmpty,
+    );
+  }
+
+  Future<void> chooseCatalog() async {
+    final result = await showCatalogPicker(
+      context,
+      land: widget.land,
+      czech: widget.store.language == 'cs',
+      selected: selected,
+    );
+    if (mounted && result != null) setState(() => selected = result);
+  }
+
+  Future<void> offlineDraft() async {
+    if (selected.isEmpty) return;
+    try {
+      final level = LevelCodec().fromJson(
+        Level(
+          id: 'catalog-${DateTime.now().microsecondsSinceEpoch}',
+          title: concepts.text.trim().isEmpty
+              ? tr('Výběr z mapy', 'Map selection')
+              : concepts.text.trim(),
+          language: contentLanguage,
+          unverified: true,
+          map: selected.first.map,
+          questions: [
+            for (final f in selected)
+              f.question(czech: contentLanguage == 'cs'),
+          ],
+        ).toJson(),
+      );
+      await Navigator.push(
+        context,
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              LevelEditor(store: widget.store, land: widget.land, level: level),
+        ),
+      );
+    } catch (e) {
+      if (mounted) setState(() => message = e.toString());
+    }
+  }
+
   Future<void> generate({bool test = false}) async {
     final token = ++generation;
     setState(() {
@@ -87,7 +136,13 @@ class _AiPageState extends State<AiPage> {
         );
         return;
       }
-      final level = LevelCodec().decode(extractJsonObject(response));
+      final level = await (await FeatureCatalog.load()).decode(
+        extractJsonObject(response),
+        requiredIds: selected.isEmpty
+            ? null
+            : selected.map((f) => f.id).toSet(),
+      );
+      if (!mounted || token != generation) return;
       final unverified = LevelCodec().fromJson({
         ...level.toJson(),
         'unverified': true,
@@ -148,6 +203,32 @@ class _AiPageState extends State<AiPage> {
                 border: const OutlineInputBorder(),
               ),
             ),
+            OutlinedButton.icon(
+              onPressed: busy ? null : chooseCatalog,
+              icon: const Icon(Icons.checklist),
+              label: Text(
+                tr(
+                  'Vybrat řeky, jezera a města (${selected.length})',
+                  'Choose rivers, lakes and cities (${selected.length})',
+                ),
+              ),
+            ),
+            Text(
+              tr(
+                'Řeky, jezera a města nejprve vyber z katalogu. AI dostane seznam zaškrtnutých objektů a použije mapová data. Pohoří popiš v pojmech.',
+                'Choose rivers, lakes and cities from the catalog first. AI receives the checked list and uses map data. Describe mountains in the concepts.',
+              ),
+            ),
+            if (selected.isNotEmpty)
+              TextButton(
+                onPressed: busy ? null : offlineDraft,
+                child: Text(
+                  tr(
+                    'Vytvořit z výběru bez AI',
+                    'Create from selection without AI',
+                  ),
+                ),
+              ),
             ListTile(
               title: Text(
                 tr('Jazyk vytvořené úrovně', 'Generated content language'),
@@ -162,17 +243,25 @@ class _AiPageState extends State<AiPage> {
               ),
             ),
             OutlinedButton.icon(
-              onPressed: () async {
-                await Clipboard.setData(ClipboardData(text: await prompt()));
-                if (mounted) {
-                  setState(
-                    () => message = tr(
-                      'Prompt zkopírován. Odpověď vlož přes Import JSON.',
-                      'Prompt copied. Paste the response using Import JSON.',
-                    ),
-                  );
-                }
-              },
+              onPressed: busy
+                  ? null
+                  : () async {
+                      try {
+                        await Clipboard.setData(
+                          ClipboardData(text: await prompt()),
+                        );
+                        if (mounted) {
+                          setState(
+                            () => message = tr(
+                              'Prompt zkopírován. Odpověď vlož přes Import JSON.',
+                              'Prompt copied. Paste the response using Import JSON.',
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (mounted) setState(() => message = e.toString());
+                      }
+                    },
               icon: const Icon(Icons.copy),
               label: Text(
                 tr(

@@ -17,7 +17,12 @@ class MapCity {
 class MapContext {
   final List<List<GeoPoint>> rivers;
   final List<MapCity> cities;
-  const MapContext({this.rivers = const [], this.cities = const []});
+  final List<List<List<GeoPoint>>> lakes;
+  const MapContext({
+    this.rivers = const [],
+    this.cities = const [],
+    this.lakes = const [],
+  });
   static final _byLand = Expando<MapContext>();
   static MapContext forLand(List<List<GeoPoint>> land) =>
       _byLand[land] ?? const MapContext();
@@ -72,6 +77,12 @@ class MapCanvas extends StatefulWidget {
     MapContext._byLand[rings] = MapContext(
       rivers: [
         for (final line in context['rivers']) [for (final p in line) point(p)],
+      ],
+      lakes: [
+        for (final polygon in context['lakes'] ?? [])
+          [
+            for (final ring in polygon) [for (final p in ring) point(p)],
+          ],
       ],
       cities: [
         for (final p in context['cities'])
@@ -667,6 +678,7 @@ class _MapCanvasState extends State<MapCanvas> {
                                 borders: widget.config.borders,
                                 context: MapContext.forLand(widget.land),
                                 showRivers: widget.config.rivers,
+                                showLakes: widget.config.lakes,
                                 showCities: widget.config.cities,
                                 dark:
                                     Theme.of(context).brightness ==
@@ -711,7 +723,7 @@ class _MapPainter extends CustomPainter {
   final List<GeoPoint> points;
   final AnswerType type;
   final Geometry? target;
-  final bool borders, dark, showRivers, showCities;
+  final bool borders, dark, showRivers, showCities, showLakes;
   final MapContext context;
   _MapPainter({
     required this.land,
@@ -723,6 +735,7 @@ class _MapPainter extends CustomPainter {
     required this.borders,
     required this.context,
     required this.showRivers,
+    required this.showLakes,
     required this.showCities,
     required this.dark,
   });
@@ -779,6 +792,23 @@ class _MapPainter extends CustomPainter {
       if (borders) canvas.drawPath(p, border);
     }
     canvas.restore();
+    if (showLakes) {
+      final water = Paint()
+        ..color = dark ? const Color(0xff294b65) : const Color(0xffbbdce8);
+      for (final polygon in context.lakes) {
+        final cached = _landPaths[polygon.first] ??= (Path()
+          ..addPolygon(
+            polygon.first.map((p) => Offset(p.lon, p.lat)).toList(),
+            true,
+          ));
+        if (!cached.getBounds().overlaps(viewport)) continue;
+        final lake = Path()..fillType = PathFillType.evenOdd;
+        for (final ring in polygon) {
+          lake.addPath(path(ring, close: true), Offset.zero);
+        }
+        canvas.drawPath(lake, water);
+      }
+    }
     if (showRivers) {
       final riverPaint = Paint()
         ..color = dark ? const Color(0xff70a7bc) : const Color(0xff729fb4)

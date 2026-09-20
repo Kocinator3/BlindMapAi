@@ -63,6 +63,10 @@
         "showCities": {
           "type": "boolean",
           "default": true
+        },
+        "showLakes": {
+          "type": "boolean",
+          "default": true
         }
       },
       "additionalProperties": false

@@ -63,13 +63,14 @@ class Question {
 class MapConfig {
   final GeoPoint center;
   final double span;
-  final bool borders, rivers, cities;
+  final bool borders, rivers, cities, lakes;
   const MapConfig({
     this.center = const GeoPoint(15.5, 49.8),
     this.span = 9,
     this.borders = true,
     this.rivers = true,
     this.cities = true,
+    this.lakes = true,
   });
   Map<String, dynamic> toJson() => {
     'center': center.toJson(),
@@ -77,6 +78,7 @@ class MapConfig {
     'showCountryBorders': borders,
     'showRivers': rivers,
     'showCities': cities,
+    'showLakes': lakes,
   };
 }
 
@@ -129,6 +131,9 @@ class LevelValidationException implements Exception {
 }
 
 class LevelCodec {
+  final Map<String, Question> catalog;
+  final Set<String>? requiredCatalogIds;
+  LevelCodec({this.catalog = const {}, this.requiredCatalogIds});
   static const maxBytes = 2 * 1024 * 1024;
   static const maxQuestions = 100;
   static const maxVertices = 500;
@@ -197,7 +202,9 @@ class LevelCodec {
     return json;
   }
 
-  Level decode(String source) {
+  Level decode(String source) => fromJson(parse(source));
+
+  Map<String, dynamic> parse(String source) {
     if (source.length > maxBytes || utf8.encode(source).length > maxBytes) {
       fail('JSON', 'Input exceeds 2 MiB.');
     }
@@ -221,7 +228,7 @@ class LevelCodec {
       }
     }
     try {
-      return fromJson(object(jsonDecode(source), 'Level'));
+      return object(jsonDecode(source), 'Level');
     } on FormatException catch (e) {
       fail('JSON', 'Invalid syntax: ${e.message} (offset ${e.offset ?? 0}).');
     }
@@ -251,8 +258,30 @@ class LevelCodec {
     }
     final ids = <String>{};
     final questions = <Question>[];
+    final selectedCatalogIds = <String>{};
     for (var i = 0; i < rawQuestions.length; i++) {
-      final q = object(rawQuestions[i], 'questions[$i]');
+      var q = object(rawQuestions[i], 'questions[$i]');
+      if (q.containsKey('catalogId')) {
+        final catalogId = string(q['catalogId'], 'questions[$i].catalogId');
+        final source = catalog[catalogId];
+        if (source == null) {
+          fail(
+            'questions[$i].catalogId',
+            'Unknown catalog ID: $catalogId. Choose an exact ID from the offline list.',
+          );
+        }
+        if (!selectedCatalogIds.add(catalogId)) {
+          fail('questions[$i].catalogId', 'Duplicate catalog selection.');
+        }
+        q = {
+          ...source.toJson(),
+          ...q,
+          'geometry': source.geometry.toJson(),
+          'answerType': source.answerType.name,
+          'category': source.category,
+          'tags': source.tags,
+        }..remove('catalogId');
+      }
       keys(q, [
         'id',
         'prompt',
@@ -408,6 +437,14 @@ class LevelCodec {
         ),
       );
     }
+    if (requiredCatalogIds != null &&
+        (selectedCatalogIds.length != requiredCatalogIds!.length ||
+            !selectedCatalogIds.containsAll(requiredCatalogIds!))) {
+      fail(
+        'questions',
+        'AI must include each selected catalog ID exactly once and no other catalog IDs.',
+      );
+    }
     final map = object(json['map'] ?? <String, dynamic>{}, 'map');
     keys(map, [
       'center',
@@ -415,8 +452,14 @@ class LevelCodec {
       'showCountryBorders',
       'showRivers',
       'showCities',
+      'showLakes',
     ], 'map');
-    for (final key in ['showCountryBorders', 'showRivers', 'showCities']) {
+    for (final key in [
+      'showCountryBorders',
+      'showRivers',
+      'showCities',
+      'showLakes',
+    ]) {
       if (map.containsKey(key) && map[key] is! bool) {
         fail('map.$key', 'Expected a boolean.');
       }
@@ -440,7 +483,7 @@ class LevelCodec {
         fallback: 'beginner',
       ),
       tags: strings(json['tags'], 'tags'),
-      unverified: json['unverified'] == true,
+      unverified: selectedCatalogIds.isNotEmpty || json['unverified'] == true,
       hardcore: json['hardcoreMode'] == true,
       toleranceMultiplier: number(
         json.containsKey('toleranceMultiplier')
@@ -456,6 +499,7 @@ class LevelCodec {
         borders: map['showCountryBorders'] != false,
         rivers: map['showRivers'] != false,
         cities: map['showCities'] != false,
+        lakes: map['showLakes'] != false,
       ),
       questions: questions,
     );

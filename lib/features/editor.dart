@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/store.dart';
+import '../data/feature_catalog.dart';
+import 'catalog_picker.dart';
 import '../domain/geo.dart';
 import '../domain/level.dart';
 import '../map/map_canvas.dart';
@@ -67,7 +69,8 @@ class _JsonPageState extends State<_JsonPage> {
               children: [
                 TextButton(
                   onPressed: () => run(() async {
-                    final level = LevelCodec().decode(text.text);
+                    final level = await decodeAuthoringLevel(text.text);
+                    if (!context.mounted) return;
                     text.text = level.encode();
                     setState(
                       () => message = tr('JSON je platný.', 'JSON is valid.'),
@@ -120,7 +123,8 @@ class _JsonPageState extends State<_JsonPage> {
                 ),
                 TextButton(
                   onPressed: () => run(() async {
-                    final level = LevelCodec().decode(text.text);
+                    final level = await decodeAuthoringLevel(text.text);
+                    if (!context.mounted) return;
                     if (Platform.isAndroid) {
                       final saved =
                           await const MethodChannel('org.slepamapa/files')
@@ -174,7 +178,8 @@ class _JsonPageState extends State<_JsonPage> {
             const SizedBox(height: 12),
             FilledButton(
               onPressed: () => run(() async {
-                final level = LevelCodec().decode(text.text);
+                final level = await decodeAuthoringLevel(text.text);
+                if (!context.mounted) return;
                 setState(() => applied = true);
                 Navigator.pop(context, level);
               }),
@@ -270,6 +275,41 @@ class _LevelEditorState extends State<LevelEditor> {
           questions[i] = q;
         }
       });
+    }
+  }
+
+  Future<void> addFromCatalog() async {
+    final selected = await showCatalogPicker(
+      context,
+      land: widget.land,
+      czech: widget.store.language == 'cs',
+      limit: LevelCodec.maxQuestions - questions.length,
+    );
+    if (!mounted || selected == null || selected.isEmpty) return;
+    try {
+      final added = [
+        for (final f in selected) f.question(czech: language == 'cs'),
+      ];
+      final stamp = DateTime.now().microsecondsSinceEpoch;
+      final validated = LevelCodec().fromJson({
+        ...value().toJson(),
+        'title': title.text.isEmpty
+            ? tr('Nová úroveň', 'New level')
+            : title.text,
+        'questions': [
+          ...questions.map((q) => q.toJson()),
+          for (var i = 0; i < added.length; i++)
+            {...added[i].toJson(), 'id': 'catalog-$stamp-$i'},
+        ],
+      });
+      setState(() {
+        if (questions.isEmpty) map = selected.first.map;
+        questions = validated.questions.toList();
+        unverified = true;
+        error = null;
+      });
+    } catch (e) {
+      setState(() => error = e.toString());
     }
   }
 
@@ -377,6 +417,7 @@ class _LevelEditorState extends State<LevelEditor> {
                       borders: map.borders,
                       rivers: map.rivers,
                       cities: map.cities,
+                      lakes: map.lakes,
                     ),
                   ),
                 ),
@@ -422,6 +463,7 @@ class _LevelEditorState extends State<LevelEditor> {
                     borders: map.borders,
                     rivers: v,
                     cities: map.cities,
+                    lakes: map.lakes,
                   ),
                 ),
               ),
@@ -435,6 +477,21 @@ class _LevelEditorState extends State<LevelEditor> {
                     borders: map.borders,
                     rivers: map.rivers,
                     cities: v,
+                    lakes: map.lakes,
+                  ),
+                ),
+              ),
+              SwitchListTile(
+                title: Text(tr('Jezera bez názvů', 'Unlabeled lakes')),
+                value: map.lakes,
+                onChanged: (v) => setState(
+                  () => map = MapConfig(
+                    center: map.center,
+                    span: map.span,
+                    borders: map.borders,
+                    rivers: map.rivers,
+                    cities: map.cities,
+                    lakes: v,
                   ),
                 ),
               ),
@@ -477,9 +534,23 @@ class _LevelEditorState extends State<LevelEditor> {
                   ),
                 ),
               OutlinedButton.icon(
-                onPressed: () => question(),
+                onPressed: questions.length >= LevelCodec.maxQuestions
+                    ? null
+                    : () => question(),
                 icon: const Icon(Icons.add_location_alt_outlined),
                 label: Text(tr('Přidat otázku', 'Add question')),
+              ),
+              OutlinedButton.icon(
+                onPressed: questions.length >= LevelCodec.maxQuestions
+                    ? null
+                    : addFromCatalog,
+                icon: const Icon(Icons.checklist),
+                label: Text(
+                  tr(
+                    'Vybrat řeky, jezera a města',
+                    'Choose rivers, lakes and cities',
+                  ),
+                ),
               ),
               if (error != null)
                 SelectableText(

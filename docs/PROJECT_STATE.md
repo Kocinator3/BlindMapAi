@@ -1,6 +1,8 @@
-# Project state — 2026-09-19 gameplay and blind-map milestone
+# Project state — 2026-09-20 lake/catalog authoring milestone
 
 ## Resume here
+The latest user-requested catalog/lake work is recorded at the end of this file.
+The user explicitly requested building the project and then stopping the improvement loop; do not start another cycle automatically.
 Read AGENTS.md, this file, ROADMAP.md, KNOWN_ISSUES.md, Git status/diff and recent history. Flutter/Dart are at `/tmp/slepamapa-flutter/bin/` (not on PATH). The SDK was missing at session start and restored at 3.47.4. Android SDK is `/opt/android-sdk`. This remains a pre-release.
 
 ## Starting state and preserved work
@@ -92,3 +94,76 @@ git commit -m "feat: add GitHub CLI release script for Android and Linux"
 git add assets/maps/context.json scripts/build_context_map.py test/map_context_test.dart lib/data/ai_service.dart docs/DATA_SOURCES.md docs/KNOWN_ISSUES.md docs/ROADMAP.md docs/PROJECT_STATE.md
 git commit -m "feat: bundle worldwide offline river context"
 ```
+
+## Lake and source-catalog authoring — 2026-09-20
+
+Started from clean `22cbb5b` after reading AGENTS.md, this memory, history,
+roadmap/issues and status/diff. The previous release/river changes were already
+committed (older handoff commands above are historical). Baseline targeted
+map/editor/API tests: all 11 passed before behavior changes.
+
+Implemented:
+- Entire Natural Earth lake layer: 1,355 features / 1,366 polygon parts, including
+  island holes, independent of questions; persisted `map.showLakes` defaults true.
+- All 7,342 source populated-place markers; a versioned offline catalog has
+  11,149 entries: 2,442 river parts, 1,366 lake exterior parts, 7,341 city/place
+  points. South Pole station is outside Level v1 latitude limits and not selectable.
+- Editor and AI share searchable/type-filtered checkboxes, country/coordinate/ID
+  disambiguation and map previews. Some Czech aliases work without diacritics.
+  Selection is capped by the 100-question limit. Small previews replace the list
+  until closed when vertical space is limited. Multiple source parts remain separate.
+- Editor adds selected source questions, centering an initially empty level on
+  the first object; the AI page can also create the selection entirely offline.
+- Prompt includes only checked names/types/IDs/centers, avoiding an enormous full
+  catalog prompt. AI returns `catalogId` references; API generation and external
+  JSON import resolve their geometry locally, validate normally and mark unverified.
+  Unknown/duplicate IDs fail; API generation requires all selected IDs exactly once.
+  Saved/exported levels embed full geometry and remain portable without a catalog.
+  Mountains retain polygon authoring. No remote AI request was sent during work.
+- Source-derived geometries retain source points, with topology-preserving
+  simplification only above the canonical 500-vertex limit. Lake questions use
+  exterior rings, not island subtraction; invalid source exteriors are repaired.
+  The full map layer retains source detail. These limits are visible in the picker
+  and documented in DATA_SOURCES.md, README and architecture/known issues.
+
+Verification:
+- Every one of the 11,149 catalog geometries passes canonical Level validation.
+- Both generated assets reproduce byte-for-byte using the documented source hashes
+  and Shapely 2.1.2. Namespaced IDs require the same source revision/part ordering.
+- All 86 unit/widget tests passed; `dart format .`, `flutter analyze --no-pub`
+  and `git diff --check` passed. Covers source resolution/override, unknown/duplicate/
+  missing IDs, standalone export roundtrip, selected prompt manifest, lake toggles,
+  island/continental coverage, search/checkbox/preview, and existing gameplay/editor.
+- All 4 native Linux integration tests passed on `DISPLAY=:0` (Xvfb is absent),
+  including selecting city/river/lake, checking preview geometries, canonical editor
+  output and importing an external AI lake reference. Native test input explicitly
+  focuses the search field after closing map previews.
+- Flutter test runner required escalation for its local socket after the session
+  environment changed; no permission workaround was used.
+- Android release build passed: `build/app/outputs/flutter-apk/app-release.apk`.
+  Linux release build passed: `build/linux/x64/release/bundle/slepa_mapa`;
+  packaged as `dist/slepamapa-linux-x64.tar.gz`. Both artifacts were checked to
+  contain byte-identical current catalog/context assets; Linux executable mode,
+  LICENSE, README and DATA_SOURCES were verified in the archive.
+- The first Android `--no-pub` build after integration tests encountered a stale
+  generated integration_test registrant even after clean/offline pub get. Standard
+  `flutter build apk --release` regenerated release plugin registration and passed;
+  no generated source or SDK code was patched. Linux used the standard release build.
+- Android signing remains the project's development configuration; Android runtime
+  and Windows builds remain unverified in this Linux environment. No test application
+  or development server is being left running; native test processes have exited.
+- Final state: requested implementation, verification and Android/Linux compilation
+  complete. The improvement loop is stopped as requested.
+
+Git handoff for this milestone:
+The session explicitly mounts `.git` read-only. All changes are preserved in the
+worktree; no commit or push was attempted. Run these exact commands when writable:
+
+```sh
+git add README.md assets/maps/context.json assets/maps/catalog.json docs/DATA_SOURCES.md docs/KNOWN_ISSUES.md docs/ROADMAP.md docs/ARCHITECTURE.md docs/PROJECT_STATE.md docs/level.schema.json integration_test/app_test.dart lib/data/ai_service.dart lib/data/feature_catalog.dart lib/domain/level.dart lib/features/ai_page.dart lib/features/catalog_picker.dart lib/features/editor.dart lib/map/map_canvas.dart scripts/build_context_map.py test/catalog_test.dart test/map_context_test.dart
+git commit -m "feat: add offline lake layer and source-backed authoring catalog"
+```
+
+User stop instruction: after successful builds and verification, end this task;
+do not continue the audit/improvement loop. Remaining general product issues in
+KNOWN_ISSUES.md are future work, not authorization to keep this session running.
