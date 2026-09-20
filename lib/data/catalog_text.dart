@@ -249,3 +249,92 @@ int _editDistance(String a, String b) {
   }
   return previous.last;
 }
+
+/// A complete draft is validated before any UI repair is started.
+class CatalogProposalItem {
+  final String userText, query;
+  final List<CatalogFeature> matches;
+  final bool allParts;
+  const CatalogProposalItem(
+    this.userText,
+    this.query,
+    this.matches,
+    this.allParts,
+  );
+  bool get resolved =>
+      matches.length == 1 ||
+      (allParts &&
+          matches.isNotEmpty &&
+          matches.map((f) => f.sourceGroupId).toSet().length == 1);
+}
+
+List<CatalogProposalItem> resolveCatalogProposal(
+  FeatureCatalog catalog,
+  String source,
+) {
+  final session = CatalogTextSession(catalog);
+  final codec = LevelCodec();
+  final json = session.parse(source);
+  codec.keys(json, [
+    'protocol',
+    'catalog',
+    'action',
+    'userText',
+    'queries',
+  ], 'Proposal');
+  if (json['protocol'] != CatalogTextSession.protocol ||
+      json['catalog'] != CatalogTextSession.revision ||
+      json['action'] != 'propose') {
+    codec.fail(
+      'Proposal',
+      'Use slepamapa.catalog/1, ne-v1 and action propose.',
+    );
+  }
+  codec.string(json['userText'], 'userText');
+  final queries = json['queries'];
+  if (queries is! List || queries.length > 100) {
+    codec.fail('queries', 'Expected at most 100 queries.');
+  }
+  return [
+    for (var i = 0; i < queries.length; i++)
+      (() {
+        final q = codec.object(queries[i], 'queries[$i]');
+        codec.keys(q, [
+          'text',
+          'identifier',
+          'kind',
+          'region',
+          'countryCode',
+          'userText',
+          'scope',
+        ], 'queries[$i]');
+        final label = codec.string(q['userText'], 'queries[$i].userText');
+        final scope = q['scope'] ?? 'single';
+        if (scope != 'single' && scope != 'allParts') {
+          codec.fail('scope', 'Use single or allParts.');
+        }
+        final request = {
+          ...q,
+          'protocol': CatalogTextSession.protocol,
+          'catalog': CatalogTextSession.revision,
+          'action': 'search',
+          'limit': 50,
+        }..remove('scope');
+        final matches = <CatalogFeature>[];
+        int? offset = 0;
+        do {
+          final page = session.search({...request, 'offset': offset});
+          for (final item in page['items'] as List) {
+            matches.add(catalog.byId[item['catalogId']]!);
+          }
+          offset = page['nextOffset'] as int?;
+        } while (offset != null);
+        return CatalogProposalItem(
+          label,
+          q['text'] as String? ?? label,
+          matches,
+          scope == 'allParts',
+        );
+      })(),
+  ];
+}

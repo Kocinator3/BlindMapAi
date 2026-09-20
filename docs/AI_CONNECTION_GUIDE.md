@@ -1,6 +1,6 @@
 # Připojení AI při generování úrovní
 
-V aplikaci otevři **Generování s AI → Poskytovatel API → Jak připojit AI přes API**.
+V aplikaci otevři **Tvorba úrovně s AI → Pomocí API → Jak připojit AI přes API**.
 Návod je součástí aplikace, funguje offline a obsahuje českou i anglickou verzi.
 Rozbal poskytovatele a stiskni **Použít nastavení**. Vyplní se jméno a Base URL;
 starý model a klíč se vymažou. Samotné použití nastavení neodesílá požadavek.
@@ -20,10 +20,18 @@ Do Base URL nepřidávej `/chat/completions`, aplikace jej připojí sama.
 1. Vlož model a API klíč. Klíč zůstává jen v paměti stránky, neukládá se na disk.
 2. Stiskni **Test spojení**. Odešle krátký požadavek, který podléhá cenám a kvótě
    poskytovatele. Úspěch nepotvrzuje správnost geografie ani schopnost vrátit úroveň.
-3. Vyber řeky, jezera či města z katalogu, nebo použij **Textový výběr s AI** podle
-   [protokolu výběru](CATALOG_TEXT_INSTRUCTIONS.md). Zadej téma a jazyk.
-4. Stiskni **Generovat**, zkontroluj mapu i otázky, oprav neplatné odkazy v dialogu
-   a ulož úroveň. Geometrie katalogových položek pochází z lokální mapy.
+3. Zadej celý seznam míst, téma a jazyk. Pokračuj k návrhu katalogu a stiskni
+   **Vygenerovat celý návrh přes API**. Všechny dotazy přijdou v jednom JSONu
+   podle [protokolu návrhu](CATALOG_TEXT_INSTRUCTIONS.md).
+4. Aplikace ověří celý seznam a nabídne opravy chybějících či nejednoznačných míst.
+   Zkontroluj katalog na mapě a stiskni **Potvrdit katalog a pokračovat**.
+5. Stiskni **Vygenerovat finální úroveň přes API**, zkontroluj editor a ulož úroveň.
+   Geometrie katalogových položek pochází z lokální mapy.
+
+Při volbě **Ručně přes chat** projdeš stejnými pěti kroky. Do chatu kopíruješ
+nejprve zadání s návodem pro celý návrh, potom potvrzený katalog s finálním promptem.
+Obě odpovědi vložíš přímo do odpovídajícího kroku průvodce. Jednotlivé dotazy
+ani stránky výsledků se ručně nepřenášejí. Tečky dole ukazují aktuální a zbývající kroky.
 
 Claude klíče vyžadující `anthropic-workspace-id` nejsou přímo podporované, protože
 aplikace neposílá vlastní hlavičky. Použij vhodný klíč, vlastní kompatibilní bránu,

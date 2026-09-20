@@ -46,6 +46,18 @@ Distribute all of `build/windows/x64/runner/Release/`, including `slepa_mapa.exe
 
 ## GitHub Release (Linux host)
 
+For the completed AI wizard milestone, run this single command from the repository:
+
+```bash
+bash scripts/publish_release.sh
+```
+
+It commits only the listed wizard files, creates `v0.1.4`, pushes `main` and the
+tag, then calls the release builder below. It continues when changes are already
+committed, refuses unrelated changes or a conflicting tag, and never overwrites
+an existing release. Flutter is detected on PATH or at the session's `/tmp` SDK;
+set `FLUTTER_BIN` if yours is elsewhere. This helper targets version `0.1.4+5`.
+
 `scripts/release.sh` runs analysis/tests, builds a fresh Android APK and Linux x64
 archive, adds SHA-256 checksums, and uploads them with GitHub CLI (`gh`).
 Requires the Android and Linux build prerequisites above and `gh auth login`.
@@ -80,15 +92,19 @@ the existing polygon editor. The lake layer has its own visibility toggle.
 River segments and separate lake parts remain separate. Long geometries are
 simplified to 500 vertices; lake islands are visible but not subtracted in scoring.
 
-The AI page uses the same selector. Check the desired objects **before copying
-the prompt or generating**; the prompt includes their names, IDs, types and
-centers. AI returns `catalogId` references and localized question text. API
+The AI author is a five-step wizard with a fixed progress indicator:
+**Method → Request → Catalog proposal → Review → Final level**.
+Choose API or manual chat first. AI proposes the entire list in one JSON object;
+the app resolves every query locally, including pagination. Missing or ambiguous
+objects open repair dialogs. Review the complete selection on the map and confirm
+it before sending the final prompt with approved names, IDs, types and centers.
+AI returns `catalogId` references and localized question text. API
 responses and JSON imports resolve references from bundled data before canonical
 validation; any AI geometry for those references is replaced. Unknown/duplicate
 IDs open a repair dialog with suggestions, manual selection and deletion. Nothing
 is substituted automatically. API generation requires the checked selection unless
 the author explicitly repairs it.
-**Create from selection without AI** opens the same source-backed draft offline.
+The visual editor's catalog selector also supports authoring entirely without AI.
 Saved/exported Level v1 JSON always embeds full geometry, with no lookup required.
 
 AI is optional. Copy prompt works without a connection. API generation sends concepts, the checked catalog list and the schema only when requested. Use the provider’s HTTPS compatible base URL, or an HTTP loopback endpoint for a local model. Keys live only in memory for the open settings page. Responses are bounded, parsed, validated and marked unverified before review.
@@ -98,13 +114,14 @@ endpoint presets for OpenAI, Gemini, Claude, DeepSeek and local Ollama; see the
 [connection guide](docs/AI_CONNECTION_GUIDE.md). Applying a preset clears the old
 model and key without sending a request.
 
-**Text selection with AI** provides a bounded search → results → selection
-protocol, with stable ordering and explicit disambiguation. Copy the bundled
-[instructions](docs/CATALOG_TEXT_INSTRUCTIONS.md) to a chat, process its JSON
-queries locally and return the actual results. Only IDs offered in this session
-can be selected without manual approval. AI must include human-readable `userText`
-and `catalogText` alternatives. Source-provided Wikidata/Natural Earth identifiers
-and country codes help lookup; unique `catalogId` still identifies the geometry.
+Manual chat requires two exchanges: copy the request and bundled
+[instructions](docs/CATALOG_TEXT_INSTRUCTIONS.md), paste the complete proposal,
+then copy the approved catalog with the final prompt and paste the level JSON.
+API mode handles the same two requests, with a required review step between them.
+Neither mode requires sending individual searches or query pages manually.
+AI must include human-readable `userText` and `catalogText` alternatives.
+Source-provided Wikidata/Natural Earth identifiers and country codes help lookup;
+unique `catalogId` still identifies the geometry.
 
 ## Checks and CI
 

@@ -13,12 +13,115 @@ import 'package:slepa_mapa/data/store.dart';
 import 'package:slepa_mapa/data/feature_catalog.dart';
 import 'package:slepa_mapa/domain/level.dart';
 import 'package:slepa_mapa/features/editor.dart';
+import 'package:slepa_mapa/features/ai_page.dart';
+import 'package:slepa_mapa/data/catalog_text.dart';
 import 'package:slepa_mapa/features/gameplay.dart';
 import 'package:slepa_mapa/main.dart';
 import 'package:slepa_mapa/map/map_canvas.dart';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  testWidgets('native batch wizard reviews entire catalog before final level', (
+    tester,
+  ) async {
+    final catalog = await FeatureCatalog.load();
+    final land = await MapCanvas.loadLand();
+    final proposal = jsonEncode({
+      'protocol': 'slepamapa.catalog/1',
+      'catalog': 'ne-v1',
+      'action': 'propose',
+      'userText': 'Two Czech cities',
+      'queries': [
+        {
+          'text': 'Praha',
+          'kind': 'city',
+          'countryCode': 'CZ',
+          'userText': 'Prague',
+        },
+        {
+          'text': 'Brno',
+          'kind': 'city',
+          'countryCode': 'CZ',
+          'userText': 'Brno',
+        },
+      ],
+    });
+    final items = resolveCatalogProposal(
+      catalog,
+      proposal,
+    ).expand((q) => q.matches).toList();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AiPage(store: AppStore()..language = 'en', land: land),
+      ),
+    );
+    await tester.pumpAndSettle();
+    Future<void> click(String label) async {
+      final position = tester
+          .state<ScrollableState>(find.byType(Scrollable).first)
+          .position;
+      position.jumpTo(0);
+      await tester.pumpAndSettle();
+      final target = find.text(label);
+      for (var i = 0; target.evaluate().isEmpty && i < 30; i++) {
+        position.jumpTo(
+          (position.pixels + 200).clamp(0, position.maxScrollExtent),
+        );
+        await tester.pumpAndSettle();
+      }
+      final button = find.ancestor(
+        of: target,
+        matching: find.byType(FilledButton),
+      );
+      await Scrollable.ensureVisible(tester.element(button), alignment: 0.5);
+      await tester.pumpAndSettle();
+      await tester.tap(target);
+      await tester.pumpAndSettle();
+    }
+
+    Future<void> enter(String value) async {
+      await Scrollable.ensureVisible(
+        tester.element(find.byType(TextField)),
+        alignment: 0.5,
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(TextField));
+      await tester.enterText(find.byType(TextField), value);
+      FocusManager.instance.primaryFocus?.unfocus();
+      await tester.pumpAndSettle();
+    }
+
+    await click('Manual chat');
+    await enter('Praha and Brno');
+    await click('Continue to catalog proposal');
+    await enter(proposal);
+    await click('Validate complete catalog');
+    expect(find.text('Step 4 of 5 · Review'), findsOneWidget);
+    expect(items, hasLength(2));
+    await click('Confirm catalog and continue');
+    await enter(
+      jsonEncode({
+        'schemaVersion': 1,
+        'id': 'batch',
+        'title': 'Batch cities',
+        'questions': [
+          for (final f in items)
+            {
+              'catalogId': f.id,
+              'catalogText': f.name,
+              'prompt': 'Mark ${f.name}',
+            },
+        ],
+      }),
+    );
+    await click('Validate level and open editor');
+    final level = tester.widget<LevelEditor>(find.byType(LevelEditor)).level!;
+    expect(level.questions, hasLength(2));
+    expect(level.unverified, isTrue);
+    for (var i = 0; i < items.length; i++) {
+      expect(level.questions[i].geometry.toJson(), items[i].geometry.toJson());
+    }
+  });
   testWidgets(
     'native catalog selection creates source-backed canonical questions',
     (tester) async {

@@ -33,9 +33,11 @@ void main() {
         home: AiPage(store: store, land: const []),
       ),
     );
+    await tester.tap(find.text('Pomocí API'));
+    await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.byWidgetPredicate((w) => w is TextField && w.obscureText),
-      300,
+      250,
       scrollable: find.byType(Scrollable).first,
     );
     final fields = tester

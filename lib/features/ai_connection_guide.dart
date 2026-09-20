@@ -98,8 +98,8 @@ class AiConnectionGuide extends StatelessWidget {
         ),
         Text(
           tr(
-            '1. Doplň přesné ID modelu a API klíč. Použití nastavení vymaže starý model i klíč. Klíč zůstává jen v paměti této stránky.\n2. Stiskni Test spojení. Ten odešle krátký placený nebo kvótovaný API požadavek podle podmínek poskytovatele. Úspěch ověří spojení, nikoli správnost geografie.\n3. Vyber položky katalogu ručně nebo přes Textový výběr s AI. Zadej téma a jazyk, pak Generovat.\n4. Zkontroluj otázky i mapu, oprav neplatné odkazy v dialogu a ulož úroveň.',
-            '1. Enter the exact model ID and API key. Applying settings clears the old model and key. The key stays only in this page’s memory.\n2. Press Test connection. This sends a short API request, billed or counted against quota according to the provider. Success checks connectivity, not geography.\n3. Select catalog items manually or through Text selection with AI. Enter a topic and language, then Generate.\n4. Review questions and map, repair invalid references in the dialog, and save the level.',
+            '1. Doplň model a API klíč. Použití nastavení vymaže starý model i klíč; nový klíč zůstává jen v paměti stránky.\n2. Test spojení odešle krátký požadavek podle cen a kvóty poskytovatele.\n3. Zadej celý seznam míst a jazyk. Pokračuj a vygeneruj celý návrh katalogu přes API.\n4. Oprav nejasné položky, zkontroluj mapu a potvrď katalog.\n5. Vygeneruj finální úroveň přes API, zkontroluj editor a ulož úroveň. Tečky dole ukazují zbývající kroky.',
+            '1. Enter a model and API key. Applying settings clears the old model and key; the new key stays only in page memory.\n2. Test connection sends a short request subject to provider prices and quota.\n3. Enter the complete list of places and language. Continue and generate the entire catalog proposal via API.\n4. Repair ambiguous items, check the map and approve the catalog.\n5. Generate the final level via API, review the editor and save. Dots at the bottom show remaining steps.',
           ),
         ),
         const SizedBox(height: 16),
@@ -109,8 +109,8 @@ class AiConnectionGuide extends StatelessWidget {
         ),
         Text(
           tr(
-            '401/403: ověř klíč a přístup k modelu. 404: zkontroluj Base URL i ID modelu. 429: ověř kvótu/kredit a zkus to později. 400: ověř, že model podporuje Chat Completions. Při časovém limitu zvol až 180 s nebo menší model. Aplikace sama přidává /chat/completions. Podporuje textovou odpověď kompatibilního API; nikoli libovolné nativní API.\nBez API použij Kopírovat prompt pro libovolné AI a vlož výsledný JSON do editoru. Hraní i ruční tvorba fungují bez internetu.',
-            '401/403: check the key and model access. 404: check Base URL and model ID. 429: check quota/credit and retry later. 400: check Chat Completions support. For timeouts, choose up to 180 s or a smaller model. The app appends /chat/completions itself. It supports compatible text responses, not arbitrary native APIs.\nWithout API access, use Copy prompt for any AI and paste the resulting JSON into the editor. Gameplay and manual authoring work offline.',
+            '401/403: ověř klíč a přístup k modelu. 404: zkontroluj Base URL i ID modelu. 429: ověř kvótu/kredit a zkus to později. 400: ověř podporu Chat Completions. Při časovém limitu zvol až 180 s nebo menší model. Aplikace sama přidává /chat/completions.\nBez API zvol na začátku Ručně přes chat. Průvodce připraví nejprve zadání pro celý katalog a po jeho kontrole finální prompt. Hraní i ruční tvorba fungují bez internetu.',
+            '401/403: check the key and model access. 404: check Base URL and model ID. 429: check quota/credit and retry later. 400: check Chat Completions support. For timeouts, choose up to 180 s or a smaller model. The app appends /chat/completions itself.\nWithout API access, choose Manual chat at the start. The wizard prepares the complete catalog request and, after review, the final prompt. Gameplay and manual authoring work offline.',
           ),
         ),
       ],

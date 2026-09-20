@@ -236,3 +236,74 @@ development configuration. Android runtime and Windows builds were not tested.
 Native test app exited; no app/server or improvement loop is left running.
 Requested implementation and local builds are complete; release awaits the manual
 commit/tag/publish commands above.
+
+## 2026-09-20 — Batch catalog proposal and five-step AI wizard (v0.1.4)
+
+Supersedes the single-query clipboard flow from the previous milestone (committed
+at `eea47bf`, local tag `v0.1.3`). User explicitly requested one complete proposal
+JSON, local validation/repair, a reviewed catalog returned to AI, and only then
+final level generation. The user also requested a simple commit/tag/release script.
+
+- Replaced the scrolling AI author page with five separate steps and a fixed
+  footer showing progress dots: method (API/manual chat), request, full catalog
+  proposal, catalog review, final level. Only current-step controls are shown;
+  long content within that step remains scrollable on small screens.
+- Added action `propose` to `slepamapa.catalog/1`, with up to 100 queries in one
+  bounded 64 KiB JSON. All queries and their result pages resolve locally, sorted
+  by stable IDs. Explicit `allParts` accepts parts of one source group only;
+  missing or ambiguous entries require replacement/manual selection/deletion.
+  Repeated resolved IDs are deduplicated; more than 100 results fails without
+  truncation. Cancel keeps the original proposal and previous reviewed state.
+- Manual chat now requires only two exchanges. First copy request + batch
+  instructions, paste proposal; after local review copy approved catalog + final
+  schema/prompt, then paste final Level JSON directly into the wizard.
+- API follows the same two-stage workflow, with an explicit catalog approval
+  between calls. Cancellable network requests reject late replies. No API keys
+  are persisted. Returning between steps preserves proposal text unless the
+  request/language changes. Preset secret clearing and offline tutorials remain.
+- Final prompt includes the approved manifest and repair decisions, forbids
+  restoring deleted items, and requires every approved ID. Final import enforces
+  that set and expands source geometry through the canonical Level codec.
+- Replaced bundled instructions and updated connection tutorials/README. Removed
+  the superseded single-query CatalogTextPage; low-level query validation remains
+  available internally. Core gameplay and visual authoring remain offline.
+- Version is `0.1.4+5`. Added `scripts/publish_release.sh`: one command commits
+  explicitly listed milestone files, makes annotated `v0.1.4`, atomically pushes
+  main/tag, and runs the existing APK/Linux release publisher. No-change commits
+  are skipped, retries reuse only a tag at HEAD, unrelated changes and conflicting
+  tags fail, existing releases are never overwritten. Flutter path is detected.
+
+Verification: 103 unit/widget tests passed, including a complete manual proposal
+with cancelled/deleted repair, approved final prompt, exactly two simulated API
+calls with a review gate and source-backed editor result, a narrow mobile layout,
+back-navigation draft preservation and automatic result pagination. All 5 native
+Linux integration tests passed, including the new complete wizard → editor flow.
+Paid AI APIs were not called. Script syntax/help and clean, changed, existing-tag,
+unrelated-file and conflicting-tag paths were checked using fake Git/gh commands
+in a temporary directory; no repository refs or remote services were changed.
+
+`.git` is mounted read-only for this session. Changes are preserved in the worktree;
+no commit/push/publication was attempted. The exact manual commit is:
+
+```sh
+git add README.md docs/AI_CONNECTION_GUIDE.md docs/CATALOG_TEXT_INSTRUCTIONS.md docs/PROJECT_STATE.md integration_test/app_test.dart lib/data/catalog_text.dart lib/features/ai_connection_guide.dart lib/features/ai_page.dart lib/features/catalog_text_page.dart pubspec.yaml scripts/publish_release.sh test/ai_connection_guide_test.dart test/ai_wizard_test.dart test/catalog_text_test.dart
+git commit -m "feat: guide AI level creation through batch catalog review"
+```
+
+Recommended user handoff (performs commit, tag, push and publication together):
+
+```sh
+bash scripts/publish_release.sh
+```
+
+Finish after final Android/Linux builds. Do not restart the improvement loop.
+
+Final checks for this milestone: `dart format .`, `flutter analyze --no-pub`,
+`git diff --check` and shell syntax checks passed. Android release APK (62.3 MB)
+and Linux release archive were rebuilt from the final sources. Both contain the
+current batch instructions and byte-identical catalog asset. Artifacts:
+`build/app/outputs/flutter-apk/app-release.apk` and
+`dist/slepamapa-linux-x64.tar.gz`. Linux executable permissions were checked;
+native test app has exited. Android runtime and Windows remain untested here.
+Work is complete; no remote release was published by the agent. User can now run
+`bash scripts/publish_release.sh` to commit/tag/publish the verified milestone.

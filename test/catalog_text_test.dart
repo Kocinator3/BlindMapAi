@@ -6,7 +6,6 @@ import 'package:slepa_mapa/data/catalog_text.dart';
 import 'package:slepa_mapa/data/feature_catalog.dart';
 import 'package:slepa_mapa/domain/level.dart';
 import 'package:slepa_mapa/features/catalog_repair.dart';
-import 'package:slepa_mapa/features/catalog_text_page.dart';
 
 CatalogFeature fixture(
   String id,
@@ -84,6 +83,112 @@ void main() {
       expect(
         session.search({...search(text: 'Prag'), 'match': 'contains'})['total'],
         3,
+      );
+    },
+  );
+
+  test('one proposal JSON resolves the complete catalog in one pass', () {
+    final catalog = FeatureCatalog([
+      fixture('city-1', 'Prague'),
+      fixture('city-2', 'Brno', region: 'Czechia'),
+    ]);
+    final proposal = {
+      'protocol': CatalogTextSession.protocol,
+      'catalog': CatalogTextSession.revision,
+      'action': 'propose',
+      'userText': 'Kompletní seznam měst pro úroveň.',
+      'queries': [
+        {'text': 'Prague', 'kind': 'city', 'userText': 'Praha v Česku'},
+        {'text': 'Brno', 'kind': 'city', 'userText': 'Brno v Česku'},
+      ],
+    };
+    final items = resolveCatalogProposal(catalog, jsonEncode(proposal));
+    expect(items, hasLength(2));
+    expect(items.every((item) => item.resolved), isTrue);
+    expect(items.expand((item) => item.matches).map((f) => f.id), [
+      'city-1',
+      'city-2',
+    ]);
+  });
+
+  test('proposal rejects invented keys and unsupported scope', () {
+    final catalog = FeatureCatalog([fixture('city-1', 'Prague')]);
+    final base = {
+      'protocol': CatalogTextSession.protocol,
+      'catalog': CatalogTextSession.revision,
+      'action': 'propose',
+      'userText': 'Návrh',
+      'queries': [
+        {'text': 'Prague', 'kind': 'city', 'userText': 'Praha'},
+      ],
+    };
+    expect(
+      () =>
+          resolveCatalogProposal(catalog, jsonEncode({...base, 'extra': true})),
+      throwsA(isA<LevelValidationException>()),
+    );
+    expect(
+      () => resolveCatalogProposal(
+        catalog,
+        jsonEncode({
+          ...base,
+          'queries': [
+            {
+              'text': 'Prague',
+              'kind': 'city',
+              'userText': 'Praha',
+              'scope': 'fuzzy',
+            },
+          ],
+        }),
+      ),
+      throwsA(isA<LevelValidationException>()),
+    );
+  });
+
+  test(
+    'batch follows all pages and never auto-resolves different source groups',
+    () {
+      final features = [
+        for (var i = 0; i < 61; i++)
+          fixture('river-7-$i', 'Long river', kind: 'river'),
+      ];
+      Map<String, dynamic> batch(String scope) => {
+        'protocol': CatalogTextSession.protocol,
+        'catalog': CatalogTextSession.revision,
+        'action': 'propose',
+        'userText': 'Řeka',
+        'queries': [
+          {
+            'text': 'Long river',
+            'kind': 'river',
+            'scope': scope,
+            'userText': 'Všechny části řeky',
+          },
+        ],
+      };
+      final all = resolveCatalogProposal(
+        FeatureCatalog(features),
+        jsonEncode(batch('allParts')),
+      ).single;
+      expect(all.matches, hasLength(61));
+      expect(all.resolved, isTrue);
+      expect(
+        resolveCatalogProposal(
+          FeatureCatalog(features),
+          jsonEncode(batch('single')),
+        ).single.resolved,
+        isFalse,
+      );
+      expect(
+        resolveCatalogProposal(
+          FeatureCatalog([
+            ...features,
+            fixture('river-8-0', 'Long river', kind: 'river'),
+          ]),
+          jsonEncode(batch('allParts')),
+        ).single.resolved,
+        isFalse,
       );
     },
   );
@@ -379,30 +484,4 @@ void main() {
       feature.geometry.toJson(),
     );
   });
-
-  testWidgets(
-    'text page queries real catalog then validates selection with readable alternative',
-    (tester) async {
-      await tester.binding.setSurfaceSize(const Size(1100, 1000));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-      await tester.pumpWidget(
-        const MaterialApp(home: CatalogTextPage(czech: false, land: [])),
-      );
-      await tester.pumpAndSettle();
-      await tester.enterText(find.byType(TextField), jsonEncode(search()));
-      await tester.tap(find.text('Process text'));
-      await tester.pumpAndSettle();
-      expect(find.textContaining('AI text for the user:'), findsOneWidget);
-      final id = realCatalog.features
-          .firstWhere((f) => f.aliases.contains('Praha'))
-          .id;
-      await tester.enterText(find.byType(TextField), jsonEncode(select([id])));
-      await tester.tap(find.text('Process text'));
-      await tester.pumpAndSettle();
-      expect(find.text('Apply selection (1)'), findsOneWidget);
-      expect(find.textContaining('AI description:'), findsOneWidget);
-      expect(find.text('Invalid catalog item'), findsNothing);
-      expect(tester.takeException(), isNull);
-    },
-  );
 }
