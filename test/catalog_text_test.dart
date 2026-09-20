@@ -279,7 +279,7 @@ void main() {
   );
 
   test('source-backed alternative label is required for new AI drafts and disappears from canonical export', () {
-    final source = realCatalog.features.first;
+    final source = realCatalog.selectableFeatures.first;
     final codec = LevelCodec(
       catalog: realCatalog.questions(),
       requireCatalogText: true,
@@ -388,7 +388,7 @@ void main() {
   testWidgets(
     'import repair cancels transaction or replaces source geometry and stale text',
     (tester) async {
-      final source = realCatalog.features.first;
+      final source = realCatalog.selectableFeatures.first;
       final original = jsonEncode({
         'schemaVersion': 1,
         'id': 'level',
@@ -447,7 +447,7 @@ void main() {
   testWidgets('deleting invalid import entry preserves valid questions', (
     tester,
   ) async {
-    final feature = realCatalog.features.first;
+    final feature = realCatalog.selectableFeatures.first;
     Level? result;
     final source = jsonEncode({
       'schemaVersion': 1,

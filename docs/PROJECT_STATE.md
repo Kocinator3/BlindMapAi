@@ -307,3 +307,54 @@ current batch instructions and byte-identical catalog asset. Artifacts:
 native test app has exited. Android runtime and Windows remain untested here.
 Work is complete; no remote release was published by the agent. User can now run
 `bash scripts/publish_release.sh` to commit/tag/publish the verified milestone.
+
+## 2026-09-20 — Whole river answers, map detail and forgiving areas (v0.1.5)
+
+User clarified the Nile issue: a whole-river answer was compared with one short
+catalog segment. Previous milestone is committed at `daaf80d`, tag `v0.1.4`.
+
+- Catalog now defaults to 1,192 complete named source river courses, combined as
+  MultiLineString with a shared 500-vertex budget. Every component endpoint is
+  retained; simplified bends replace truncated/partial references. Same-name
+  source features are grouped within 0.5 degrees, leaving distant homonyms
+  separate. Nile explicitly includes main source sections (White/Mountain/Albert/
+  Victoria Nile) and Rosetta/Damietta delta branches; Blue Nile stays separate.
+  No lines are invented across source gaps. English query names are now mandatory
+  in AI instructions; userText remains in the author's language.
+- Kept all 2,442 legacy segment IDs with replacement pointers. Imports resolve
+  those references to whole rivers. New default catalog has 9,899 objects; asset
+  has 12,341 records including legacy ones. Saved canonical levels remain portable;
+  editor offers 'Replace segments with whole rivers' for legacy source-tagged
+  questions, updating geometry/text, deduplicating same-river segments and marking
+  unverified. This is an explicit action, not silent alteration of saved work.
+- Canonical/schema MultiLineString component cap increased to 250, still bounded
+  by 500 total vertices. Streaming line/area drawing and polyline click input
+  simplify the whole route at capacity instead of dropping its tail.
+- Lake/river colors are identical; country boundaries paint after both. Lake
+  island holes remain visible. Water paths now use cached world-coordinate paths.
+- City data adds historical Natural Earth pop_max. Cached zoom tiers retain all
+  national capitals and 2M+ cities; thresholds relax through 500k/100k/20k to all
+  cities at close zoom. Core rendering and gameplay stay fully offline.
+- Area scoring uses bidirectional sampled RMS boundary distance plus absolute
+  square-root-area size error, both in km, with a half-tolerance allowance and
+  smooth falloff. It no longer scores overlap percentages. Tolerance multiplier
+  applies to areas too. Existing historical results are not recalculated.
+- Release helper and app version advance to v0.1.5 / 0.1.5+6. Helper still stages
+  only explicitly listed milestone files and does not run automatically.
+
+Regression coverage includes full Nile extent (equatorial source sections to
+Mediterranean delta), low scores for isolated short fragments, all legacy source
+endpoints retained, validity of every catalog record, explicit saved-level repair,
+English lookup prompt, population/zoom tiers, water/border draw order, long-stroke
+endpoint preservation, shifted thin polygons and tolerance scaling.
+
+`.git` remains read-only in the session. No commit/push/publication attempted.
+After local verification and builds, user may run `bash scripts/publish_release.sh`
+to stage these exact changes, commit, tag v0.1.5 and publish APK/Linux. Manual commit:
+
+```sh
+git add README.md assets/maps/catalog.json assets/maps/context.json docs/CATALOG_TEXT_INSTRUCTIONS.md docs/ARCHITECTURE.md docs/DATA_SOURCES.md docs/KNOWN_ISSUES.md docs/PROJECT_STATE.md docs/level.schema.json integration_test/app_test.dart lib/data/ai_service.dart lib/data/catalog_text.dart lib/data/feature_catalog.dart lib/domain/geo.dart lib/domain/level.dart lib/domain/map_detail.dart lib/domain/scoring.dart lib/features/catalog_picker.dart lib/features/editor.dart lib/map/map_canvas.dart pubspec.yaml scripts/build_context_map.py scripts/publish_release.sh test/ai_wizard_test.dart test/area_fairness_test.dart test/catalog_test.dart test/catalog_text_test.dart test/domain_test.dart test/map_context_test.dart
+git commit -m "fix: use whole river courses and forgiving map scoring"
+```
+
+Finish the requested changes/tests/builds, then stop; no improvement loop.

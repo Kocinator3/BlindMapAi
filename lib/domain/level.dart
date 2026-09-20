@@ -335,10 +335,11 @@ class LevelCodec {
       } else if (g['type'] == 'LineString' || g['type'] == 'MultiPoint') {
         parts = [coordinates];
       } else {
+        final maxParts = g['type'] == 'MultiLineString' ? maxVertices ~/ 2 : 20;
         if (coordinates is! List ||
             coordinates.isEmpty ||
-            coordinates.length > 20) {
-          fail(path, 'Expected 1–20 geometry parts.');
+            coordinates.length > maxParts) {
+          fail(path, 'Expected 1–$maxParts geometry parts.');
         }
         parts = coordinates;
       }

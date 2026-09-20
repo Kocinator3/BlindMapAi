@@ -69,7 +69,7 @@ class _CatalogPickerState extends State<CatalogPicker> {
           final words = CatalogFeature.normalize(query)
               .split(RegExp(r'\s+'))
               .where((s) => s.isNotEmpty);
-          final visible = snapshot.data!.features
+          final visible = snapshot.data!.selectableFeatures
               .where(
                 (f) =>
                     (kind == 'all' || f.kind == kind) &&
@@ -112,8 +112,8 @@ class _CatalogPickerState extends State<CatalogPicker> {
                 padding: const EdgeInsets.all(8),
                 child: Text(
                   tr(
-                    '${visible.length} položek · Natural Earth. Úseky řek a části jezer jsou samostatné. Jezera: vnější obrys, bez odečtu ostrovů; max. 500 bodů.',
-                    '${visible.length} entries · Natural Earth. River segments and lake parts are separate. Lakes: exterior outline, islands not subtracted; max. 500 vertices.',
+                    '${visible.length} položek · Natural Earth. Řeky pokrývají celý pojmenovaný tok ve zdroji; zatáčky jsou zjednodušené. Jezera: vnější obrys. Max. 500 bodů na odpověď.',
+                    '${visible.length} entries · Natural Earth. Rivers cover the whole named source course with simplified bends. Lakes: exterior outline. Max. 500 vertices per answer.',
                   ),
                 ),
               ),

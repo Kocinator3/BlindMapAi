@@ -85,7 +85,7 @@ class CatalogTextSession {
       catalog.features.length,
     );
     final limit = _integer(request['limit'] ?? 20, 'limit', 1, 50);
-    final matches = catalog.features.where((f) {
+    final matches = catalog.selectableFeatures.where((f) {
       if (f.kind != kind ||
           (region != null && normalized(f.region) != region) ||
           (countryCode != null && f.countryCode != countryCode)) {
@@ -220,7 +220,9 @@ List<CatalogFeature> suggestCatalog(
   }
 
   final ranked = [
-    for (final f in catalog.features.where((f) => !exclude.contains(f.id)))
+    for (final f in catalog.selectableFeatures.where(
+      (f) => !exclude.contains(f.id),
+    ))
       (f, [f.id, f.name, ...f.aliases].map(score).reduce(math.min)),
   ];
   ranked.sort((a, b) {

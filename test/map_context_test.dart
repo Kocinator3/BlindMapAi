@@ -2,10 +2,49 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:slepa_mapa/domain/geo.dart';
 import 'package:slepa_mapa/domain/level.dart';
+import 'package:slepa_mapa/domain/map_detail.dart';
 import 'package:slepa_mapa/map/map_canvas.dart';
+
+class RecordingCanvas implements Canvas {
+  final paths = <(Path, int, PaintingStyle)>[];
+  @override
+  void drawPath(Path path, Paint paint) =>
+      paths.add((path, paint.color.toARGB32(), paint.style));
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  test(
+    'city detail grows with zoom while capitals and major cities stay visible',
+    () async {
+      final land = await MapCanvas.loadLand();
+      final context = MapContext.forLand(land);
+      final world = context.citiesAt(100);
+      expect(world.length, lessThan(context.cities.length ~/ 4));
+      expect(
+        world,
+        containsAll(
+          context.cities.where((c) => c.capital || c.population >= 2000000),
+        ),
+      );
+      expect(identical(world, context.citiesAt(80)), isTrue);
+      var previous = world.length;
+      for (final span in [30.0, 10.0, 3.0, .5]) {
+        final current = context.citiesAt(span);
+        expect(current.length, greaterThanOrEqualTo(previous));
+        expect(
+          current.every(
+            (c) => c.capital || c.population >= cityPopulationThreshold(span),
+          ),
+          isTrue,
+        );
+        previous = current.length;
+      }
+      expect(context.citiesAt(.5).length, context.cities.length);
+    },
+  );
   test(
     'offline rivers cover all inhabited continents with valid open parts',
     () async {
@@ -133,5 +172,50 @@ void main() {
       );
       expect(tester.takeException(), isNull);
     }
+  });
+
+  testWidgets('water shares one color and country boundaries paint above it', (
+    tester,
+  ) async {
+    final land = await tester.runAsync(MapCanvas.loadLand);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MapCanvas(
+            land: land!,
+            config: const MapConfig(center: GeoPoint(33, -1), span: 12),
+            type: AnswerType.point,
+            points: const [],
+            onChanged: (_) {},
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final painter = tester
+        .widget<CustomPaint>(
+          find
+              .descendant(
+                of: find.byType(MapCanvas),
+                matching: find.byType(CustomPaint),
+              )
+              .last,
+        )
+        .painter!;
+    final canvas = RecordingCanvas();
+    painter.paint(canvas, const Size(400, 400));
+    const water = 0xff729fb4, border = 0xff829b94;
+    expect(
+      canvas.paths.where((p) => p.$2 == water && p.$3 == PaintingStyle.fill),
+      isNotEmpty,
+    );
+    expect(
+      canvas.paths.where((p) => p.$2 == water && p.$3 == PaintingStyle.stroke),
+      isNotEmpty,
+    );
+    final lastWater = canvas.paths.lastIndexWhere((p) => p.$2 == water);
+    final firstBorder = canvas.paths.indexWhere((p) => p.$2 == border);
+    expect(firstBorder, greaterThan(lastWater));
+    expect(tester.takeException(), isNull);
   });
 }

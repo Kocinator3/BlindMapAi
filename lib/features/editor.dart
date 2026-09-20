@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/store.dart';
+import '../data/feature_catalog.dart';
 import 'catalog_picker.dart';
 import 'catalog_repair.dart';
 import '../domain/geo.dart';
@@ -412,6 +413,42 @@ class _LevelEditorState extends State<LevelEditor> {
                 value: unverified,
                 onChanged: (v) => setState(() => unverified = v),
               ),
+              if (questions.any(
+                (q) => q.tags.any((t) => t.startsWith('catalog:ne-v1-river-')),
+              )) ...[
+                Text(
+                  tr(
+                    'Starší říční úseky lze nahradit celými toky. Obnoví se texty říčních otázek a opakované úseky téže řeky se sloučí.',
+                    'Replace legacy river segments with whole courses. River question text is reset and repeated segments of the same river are combined.',
+                  ),
+                ),
+                OutlinedButton(
+                  onPressed: saving
+                      ? null
+                      : () async {
+                          setState(() => saving = true);
+                          try {
+                            final catalog = await FeatureCatalog.load();
+                            if (!mounted) return;
+                            final updated = catalog.updateLegacyRivers(value());
+                            setState(() {
+                              questions = updated.questions;
+                              unverified = updated.unverified;
+                            });
+                          } catch (e) {
+                            if (mounted) setState(() => error = e.toString());
+                          } finally {
+                            if (mounted) setState(() => saving = false);
+                          }
+                        },
+                  child: Text(
+                    tr(
+                      'Nahradit úseky celými řekami',
+                      'Replace segments with whole rivers',
+                    ),
+                  ),
+                ),
+              ],
               ListTile(
                 title: Text(tr('Výchozí mapa', 'Initial map')),
                 trailing: DropdownButton<double>(
@@ -459,8 +496,8 @@ class _LevelEditorState extends State<LevelEditor> {
               ),
               Text(
                 tr(
-                  'Pro body a řeky. Oblasti se hodnotí podle překryvu.',
-                  'For points and rivers. Areas are scored by overlap.',
+                  'Pro body, řeky i oblasti. U oblastí se toleruje odchylka hranice v kilometrech.',
+                  'For points, rivers and areas. Areas allow boundary offset in kilometres.',
                 ),
               ),
               Slider(

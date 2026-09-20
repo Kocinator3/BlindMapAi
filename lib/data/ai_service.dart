@@ -26,7 +26,7 @@ Close polygon rings by repeating the first coordinate. No crossings or zero-area
 At most 100 questions, 500 vertices per question; regional polygons under 3500 km extent.
 Scoring: toleranceKm is a finite number from 0.1 to 2000; use 30 for cities, 15–30 for regional rivers.
 Level settings: hardcoreMode is a boolean (default false); an answer below 700/1000 ends a hardcore session.
-toleranceMultiplier is a finite number 0.25..4 (default 1), multiplying toleranceKm for point, multiPoint and polyline only. Area overlap scoring is unchanged.
+toleranceMultiplier is a finite number 0.25..4 (default 1), multiplying toleranceKm for all answer types. Areas are scored by boundary distance and absolute size error in kilometres, not overlap percentage; small offsets within half the tolerance are forgiven.
 Questions play in random order without repetition. Each prompt must stand alone, never refer to question numbers or preceding answers.
 Map showCountryBorders, showRivers, showLakes and showCities are booleans (default true). Rivers and city dots are unlabeled offline context, rivers and major cities cover all inhabited continents; City circles mark ordinary cities; pentagons mark national capitals. Never put names or answer highlights in map layers.
 Map center is [longitude, latitude]; longitudeSpan is 0.1..160 degrees.
@@ -34,7 +34,7 @@ Do not invent uncertain geographic details. Explain approximations. ALWAYS set u
 AI geography always requires human review. Do not include API keys or provider settings.
 For cities, rivers and lakes, select exact catalogId values from the offline catalog below. If the list is empty, do not generate cities, rivers or lakes: state in the level description that the author needs to select them in the catalog first.
 Always include a human-readable catalogText alternative for each catalog question, in the requested language. Treat this label as explanatory text, never as an ID or proof of identity. Wikidata IDs, Natural Earth IDs and country codes are only lookup metadata; use exact catalogId for a concrete part. Never fabricate missing external identifiers.
-Never invent their coordinates or IDs. Each catalog item is a selectable source part: do not join river segments or lake parts.
+Never invent coordinates or IDs. River catalog items contain the whole named source course, simplified across all components while retaining endpoints. Never select only a short segment when the author requests the whole river. Do not invent connections across source gaps. Lake parts remain separate.
 For catalog questions output {"id":"unique-question-id","catalogId":"exact ID","catalogText":"human-readable name, type and location from the supplied catalog","prompt":"localized stand-alone question"}.
 Omit geometry and answerType for these questions: the importer copies the bundled geometry and sets point for cities, polyline for rivers, polygon for lakes. Any supplied geometry/type is replaced locally.
 This is an authoring shorthand only. Import resolves IDs BEFORE canonical Level v1 validation; saved/exported levels always contain complete geometry and work offline without catalog lookup.

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Publish the reviewed AI wizard milestone. Run manually; Codex does not push it.
+# Publish the full-course rivers and map/scoring milestone. Run manually.
 # Explicit paths prevent accidentally committing unrelated work or credentials.
 cd "$(dirname "$0")/.."
-tag=v0.1.4
+tag=v0.1.5
 if [[ "${1:-}" == --help ]]; then
   printf '%s\n' 'Usage: bash scripts/publish_release.sh' \
-    'Commits the AI wizard changes, pushes main and v0.1.4, then publishes APK and Linux.'
+    'Commits map/scoring changes, pushes main and v0.1.5, then publishes APK and Linux.'
   exit 0
 fi
 [[ $# == 0 ]] || { printf '%s\n' 'Run without arguments, or use --help.' >&2; exit 1; }
@@ -27,14 +27,19 @@ for tool in git gh "$FLUTTER_BIN"; do
   command -v "$tool" >/dev/null || fail "Missing command: $tool"
 done
 [[ "$(git branch --show-current)" == main ]] || fail 'Switch to main before publishing.'
-[[ "$(awk '/^version:/ {print $2}' pubspec.yaml)" == 0.1.4+5 ]] || fail 'Expected app version 0.1.4+5.'
+[[ "$(awk '/^version:/ {print $2}' pubspec.yaml)" == 0.1.5+6 ]] || fail 'Expected app version 0.1.5+6.'
 
 paths=(
-  README.md docs/AI_CONNECTION_GUIDE.md docs/CATALOG_TEXT_INSTRUCTIONS.md
-  docs/PROJECT_STATE.md integration_test/app_test.dart lib/data/catalog_text.dart
-  lib/features/ai_connection_guide.dart lib/features/ai_page.dart
-  lib/features/catalog_text_page.dart pubspec.yaml scripts/publish_release.sh
-  test/ai_connection_guide_test.dart test/ai_wizard_test.dart test/catalog_text_test.dart
+  README.md assets/maps/catalog.json assets/maps/context.json
+  docs/CATALOG_TEXT_INSTRUCTIONS.md docs/ARCHITECTURE.md docs/DATA_SOURCES.md
+  docs/KNOWN_ISSUES.md docs/PROJECT_STATE.md docs/level.schema.json
+  integration_test/app_test.dart lib/data/ai_service.dart lib/data/catalog_text.dart
+  lib/data/feature_catalog.dart lib/domain/geo.dart lib/domain/level.dart
+  lib/domain/map_detail.dart lib/domain/scoring.dart lib/features/catalog_picker.dart
+  lib/features/editor.dart lib/features/catalog_text_page.dart lib/map/map_canvas.dart pubspec.yaml
+  scripts/build_context_map.py scripts/publish_release.sh
+  test/ai_wizard_test.dart test/area_fairness_test.dart test/catalog_test.dart
+  test/catalog_text_test.dart test/domain_test.dart test/map_context_test.dart
 )
 while IFS= read -r entry; do
   path="${entry:3}"
@@ -57,7 +62,7 @@ for path in "${paths[@]}"; do
   fi
 done
 if ! git diff --cached --quiet; then
-  git commit -m "feat: guide AI level creation through batch catalog review"
+  git commit -m "fix: use whole river courses and forgiving map scoring"
 else
   printf '%s\n' 'Changes are already committed; continuing to tag and release.'
 fi

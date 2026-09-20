@@ -61,3 +61,34 @@ country codes (7,329 entries). Missing values are omitted, never inferred.
 An international identifier can describe multiple geometry parts; `catalogId`
 remains the unique selectable reference. The bundled text protocol `ne-v1`
 uses exact identifier lookup, stable ID sorting and paginated results.
+
+## Whole-course river references and city detail — v0.1.5
+
+The catalog now contains 9,899 default-selectable objects: 1,192 full named river
+courses, 1,366 lake parts and 7,341 cities. Its 2,442 legacy river-part records
+remain for reference compatibility (12,341 total records). New river IDs use
+`ne-v2-river-<source identity>-whole`. Empty source geometries are omitted.
+Same-English-name source features are clustered when their geometry is within
+0.5 degrees; different distant rivers of the same name remain separate choices.
+This is source-based grouping, not a claim of complete real-world hydrology.
+
+The Nile entry explicitly combines source sections named Nile, White Nile,
+Mountain Nile, Albert Nile, Victoria Nile, Rosetta Branch and Damietta Branch.
+Blue Nile remains a separate river. Gaps in the source (including lake passages)
+are retained as separate components; no artificial connecting lines are invented.
+Each whole course shares a total 500-vertex budget. Simplification runs on the
+whole source geometry, retaining every component endpoint and reducing bends
+instead of cutting off downstream/upstream sections. MultiLineString now permits
+up to 250 components under the unchanged 500-total-vertex cap.
+
+Legacy authoring IDs resolve to their complete river on import. Previously saved
+levels embed their original geometry; the editor offers an explicit replacement
+action, preserving question IDs, resetting river question text and deduplicating
+segments of the same complete course. These changes remain unverified for review.
+
+Map context still contains every source river segment and lake ring. City context
+adds `population` from `pop_max`, clamped to nonnegative values. These are historical
+source attributes, not live population estimates. Capitals and cities of 2M+ are
+always eligible; longitude spans above 40°, 15°, 5°, 1° use thresholds of 2M,
+500k, 100k, 20k respectively; spans of 1° or less show all cities. Viewport culling
+still applies. Cached city tiers and world-coordinate water paths reduce redraw work.

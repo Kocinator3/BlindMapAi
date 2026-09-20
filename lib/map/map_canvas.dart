@@ -7,11 +7,13 @@ import 'package:flutter/services.dart';
 
 import '../domain/geo.dart';
 import '../domain/level.dart';
+import '../domain/map_detail.dart';
 
 class MapCity {
   final GeoPoint point;
   final bool capital;
-  const MapCity(this.point, {required this.capital});
+  final int population;
+  const MapCity(this.point, {required this.capital, this.population = 0});
 }
 
 class MapContext {
@@ -24,6 +26,17 @@ class MapContext {
     this.lakes = const [],
   });
   static final _byLand = Expando<MapContext>();
+  static final _cityTiers = Expando<Map<int, List<MapCity>>>();
+  List<MapCity> citiesAt(double span) {
+    final tiers = _cityTiers[this] ??= {};
+    final threshold = cityPopulationThreshold(span);
+    return tiers.putIfAbsent(
+      threshold,
+      () =>
+          cities.where((c) => c.capital || c.population >= threshold).toList(),
+    );
+  }
+
   static MapContext forLand(List<List<GeoPoint>> land) =>
       _byLand[land] ?? const MapContext();
 }
@@ -86,7 +99,11 @@ class MapCanvas extends StatefulWidget {
       ],
       cities: [
         for (final p in context['cities'])
-          MapCity(point(p['point']), capital: p['capital'] == true),
+          MapCity(
+            point(p['point']),
+            capital: p['capital'] == true,
+            population: (p['population'] as num?)?.toInt() ?? 0,
+          ),
       ],
     );
     return rings;
@@ -272,7 +289,11 @@ class _MapCanvasState extends State<MapCanvas> {
     } else if (widget.type == AnswerType.multiPoint ||
         widget.type == AnswerType.polygon ||
         widget.type == AnswerType.polyline) {
-      if (points.length < 500) change([...points, geo(p)]);
+      if (widget.type == AnswerType.polyline) {
+        change(simplifyToBudget([...points, geo(p)]));
+      } else if (points.length < 500) {
+        change([...points, geo(p)]);
+      }
     }
   }
 
@@ -625,13 +646,19 @@ class _MapCanvasState extends State<MapCanvas> {
                               );
                             } else if (widget.type == AnswerType.polyline ||
                                 _areaDrag) {
-                              if (draft.length < (_areaDrag ? 499 : 500) &&
-                                  (draft.isEmpty ||
-                                      (screen(draft.last) -
-                                                  details.localFocalPoint)
-                                              .distance >
-                                          4)) {
-                                setState(() => draft.add(p));
+                              if ((draft.isEmpty ||
+                                  (screen(draft.last) - details.localFocalPoint)
+                                          .distance >
+                                      4)) {
+                                setState(() {
+                                  draft.add(p);
+                                  if (draft.length >= (_areaDrag ? 499 : 500)) {
+                                    draft = simplifyToBudget(
+                                      draft,
+                                      maxPoints: 350,
+                                    );
+                                  }
+                                });
                               }
                             }
                           },
@@ -715,6 +742,7 @@ class _MapCanvasState extends State<MapCanvas> {
 }
 
 final _landPaths = Expando<Path>('offline land paths');
+final _lakePaths = Expando<Path>('offline lake paths');
 
 class _MapPainter extends CustomPainter {
   final List<List<GeoPoint>> land;
@@ -789,43 +817,50 @@ class _MapPainter extends CustomPainter {
         ));
       if (!p.getBounds().overlaps(viewport)) continue;
       canvas.drawPath(p, fill);
-      if (borders) canvas.drawPath(p, border);
     }
-    canvas.restore();
     if (showLakes) {
       final water = Paint()
-        ..color = dark ? const Color(0xff294b65) : const Color(0xffbbdce8);
+        ..color = dark ? const Color(0xff70a7bc) : const Color(0xff729fb4);
       for (final polygon in context.lakes) {
-        final cached = _landPaths[polygon.first] ??= (Path()
-          ..addPolygon(
-            polygon.first.map((p) => Offset(p.lon, p.lat)).toList(),
-            true,
-          ));
+        final cached = _lakePaths[polygon] ??= (() {
+          final result = Path()..fillType = PathFillType.evenOdd;
+          for (final ring in polygon) {
+            result.addPolygon(
+              ring.map((p) => Offset(p.lon, p.lat)).toList(),
+              true,
+            );
+          }
+          return result;
+        })();
         if (!cached.getBounds().overlaps(viewport)) continue;
-        final lake = Path()..fillType = PathFillType.evenOdd;
-        for (final ring in polygon) {
-          lake.addPath(path(ring, close: true), Offset.zero);
-        }
-        canvas.drawPath(lake, water);
+        canvas.drawPath(cached, water);
       }
     }
     if (showRivers) {
       final riverPaint = Paint()
         ..color = dark ? const Color(0xff70a7bc) : const Color(0xff729fb4)
-        ..strokeWidth = 1.2
+        ..strokeWidth = 1.2 / sx
         ..style = PaintingStyle.stroke;
       for (final line in context.rivers) {
         final cached = _landPaths[line] ??= (Path()
           ..addPolygon(line.map((p) => Offset(p.lon, p.lat)).toList(), false));
         if (cached.getBounds().overlaps(viewport)) {
-          canvas.drawPath(path(line), riverPaint);
+          canvas.drawPath(cached, riverPaint);
         }
       }
     }
+    // Water must never cover international boundaries across lakes/rivers.
+    if (borders) {
+      for (final ring in land) {
+        final p = _landPaths[ring]!;
+        if (p.getBounds().overlaps(viewport)) canvas.drawPath(p, border);
+      }
+    }
+    canvas.restore();
     if (showCities) {
       final cityPaint = Paint()
         ..color = dark ? const Color(0xffb8c9c5) : const Color(0xff657871);
-      for (final city in context.cities) {
+      for (final city in context.citiesAt(span)) {
         final p = project(city.point);
         if ((Offset.zero & size).contains(p)) {
           final radius = city.capital

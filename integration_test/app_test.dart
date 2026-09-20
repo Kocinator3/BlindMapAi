@@ -130,7 +130,7 @@ void main() {
       final store = AppStore()..language = 'en';
       final selected = [
         for (final kind in ['city', 'river', 'lake'])
-          catalog.features.firstWhere((f) => f.kind == kind),
+          catalog.selectableFeatures.firstWhere((f) => f.kind == kind),
       ];
       await tester.pumpWidget(
         MaterialApp(

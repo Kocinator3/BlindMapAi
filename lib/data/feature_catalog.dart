@@ -7,6 +7,7 @@ import '../domain/level.dart';
 
 class CatalogFeature {
   final String id, name, kind, region, detail, countryCode;
+  final String? replacementId;
   final Map<String, String> identifiers;
   final List<String> aliases;
   final Geometry geometry;
@@ -16,6 +17,7 @@ class CatalogFeature {
       kind = json['kind'] as String,
       region = json['region'] as String,
       countryCode = json['countryCode'] as String? ?? '',
+      replacementId = json['replacementId'] as String?,
       identifiers = Map<String, String>.from(
         json['identifiers'] as Map? ?? const {},
       ),
@@ -46,8 +48,8 @@ class CatalogFeature {
       id.contains('-') ? id.substring(0, id.lastIndexOf('-')) : id;
   int get partNumber => (int.tryParse(id.split('-').last) ?? 0) + 1;
 
-  Question question({bool czech = true}) => Question(
-    id: id,
+  Question question({bool czech = true, String? questionId}) => Question(
+    id: questionId ?? id,
     prompt: '${czech ? 'Vyznač' : 'Mark'}: $name',
     answerType: switch (kind) {
       'city' => AnswerType.point,
@@ -94,6 +96,9 @@ class CatalogFeature {
 class FeatureCatalog {
   final List<CatalogFeature> features;
   FeatureCatalog(this.features);
+  late final List<CatalogFeature> selectableFeatures = features
+      .where((f) => f.replacementId == null)
+      .toList();
   late final Map<String, CatalogFeature> byId = {
     for (final f in features) f.id: f,
   };
@@ -126,7 +131,11 @@ class FeatureCatalog {
   })();
 
   Map<String, Question> questions({bool czech = true}) => {
-    for (final f in features) f.id: f.question(czech: czech),
+    for (final f in features)
+      f.id: (byId[f.replacementId] ?? f).question(
+        czech: czech,
+        questionId: f.id,
+      ),
   };
 
   String manifest(List<CatalogFeature> selected) => jsonEncode([
@@ -145,6 +154,44 @@ class FeatureCatalog {
         'partCount': partCounts[f.sourceGroupId],
       },
   ]);
+
+  /// Explicit author action; saved levels otherwise retain embedded geometry.
+  Level updateLegacyRivers(Level level) {
+    final questions = <Map<String, dynamic>>[];
+    final upgraded = <String>{};
+    var changed = false;
+    for (final question in level.questions) {
+      CatalogFeature? replacement;
+      for (final tag in question.tags) {
+        if (!tag.startsWith('catalog:')) continue;
+        final old = byId[tag.substring('catalog:'.length)];
+        replacement = byId[old?.replacementId];
+        if (replacement != null) break;
+      }
+      if (replacement == null) {
+        questions.add(question.toJson());
+        continue;
+      }
+      changed = true;
+      if (!upgraded.add(replacement.id)) continue;
+      final source = replacement.question(czech: level.language == 'cs');
+      questions.add({
+        ...question.toJson(),
+        'geometry': source.geometry.toJson(),
+        'answerType': source.answerType.name,
+        'tags': source.tags,
+        'prompt': source.prompt,
+        'explanation': source.explanation,
+        'hints': <String>[],
+      });
+    }
+    if (!changed) return level;
+    return LevelCodec().fromJson({
+      ...level.toJson(),
+      'questions': questions,
+      'unverified': true,
+    });
+  }
 
   Future<Level> decode(String source, {Set<String>? requiredIds}) async =>
       LevelCodec(

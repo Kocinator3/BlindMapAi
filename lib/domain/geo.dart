@@ -88,6 +88,20 @@ bool insidePolygon(XY p, List<XY> ring) {
   return inside;
 }
 
+/// Reduce detail over the entire route, keeping both endpoints. Never truncate
+/// the tail when an input stroke or a reference exhausts its vertex budget.
+List<GeoPoint> simplifyToBudget(List<GeoPoint> points, {int maxPoints = 500}) {
+  if (maxPoints < 2) throw ArgumentError.value(maxPoints, 'maxPoints');
+  if (points.length <= maxPoints) return List.of(points);
+  var tolerance = 0.001;
+  var result = List<GeoPoint>.of(points);
+  while (result.length > maxPoints) {
+    result = simplify(points, toleranceKm: tolerance);
+    tolerance *= 2;
+  }
+  return result;
+}
+
 bool selfIntersects(List<GeoPoint> ring) {
   if (ring.length < 4) return false;
   final projection = LocalProjection(ring.first);

@@ -6,7 +6,7 @@ import json
 import re
 import sys
 from pathlib import Path
-from shapely.geometry import Polygon, LineString
+from shapely.geometry import Polygon, LineString, MultiLineString
 from shapely import make_valid
 
 
@@ -37,6 +37,7 @@ if len(sys.argv) != 4:
 
 catalog = []
 rivers, cities, lakes = [], [], []
+river_sources = []
 for kind, source in zip(['river', 'city', 'lake'], sys.argv[1:]):
     for index, feature in enumerate(json.loads(Path(source).read_text())['features']):
         g, props = feature['geometry'], feature['properties']
@@ -62,11 +63,13 @@ for kind, source in zip(['river', 'city', 'lake'], sys.argv[1:]):
             if g['type'] != 'Point':
                 continue
             p = points([g['coordinates']])[0]
-            cities.append({'point': p, 'capital': props.get('adm0cap') == 1})
+            cities.append({'point': p, 'capital': props.get('adm0cap') == 1,
+                           'population': max(0, int(props.get('pop_max') or 0))})
             parts = [[p]]
         elif kind == 'river':
             parts = [g['coordinates']] if g['type'] == 'LineString' else g['coordinates']
             rivers.extend(points(part) for part in parts)
+            river_sources.append((name, identity, parts))
         else:
             polygons = [g['coordinates']] if g['type'] == 'Polygon' else g['coordinates']
             lakes.extend([[points(ring) for ring in polygon] for polygon in polygons])
@@ -97,6 +100,66 @@ for kind, source in zip(['river', 'city', 'lake'], sys.argv[1:]):
                 'geometry': {'type': {'city': 'Point', 'river': 'LineString', 'lake': 'Polygon'}[kind],
                              'coordinates': ring[0] if kind == 'city' else [ring] if kind == 'lake' else ring},
             })
+
+# A river question must cover the source's whole named course, not one tile-like
+# source segment. Keep old IDs for importing drafts, but direct them to the new
+# full-course entry and hide their partial geometries from default selection.
+by_name = {}
+nile_course = {'Nile', 'White Nile', 'Mountain Nile', 'Albert Nile',
+               'Victoria Nile', 'Rosetta Branch', 'Damietta Branch'}
+for name, identity, parts in river_sources:
+    by_name.setdefault(name, []).append((identity, parts))
+
+def whole_course(parts):
+    original = [LineString(p) for p in parts if len(points(p)) >= 2 and LineString(p).length > 0]
+    tolerance = 0.00001
+    while True:
+        result = [points(s.simplify(tolerance, preserve_topology=True).coords) for s in original]
+        result = [p for p in result if len(p) >= 2 and len(set(map(tuple, p))) >= 2]
+        if sum(map(len, result)) <= 500:
+            return result
+        tolerance *= 2
+        if tolerance > 10:
+            raise ValueError('River components cannot fit the 500-vertex budget')
+
+for name, sources in by_name.items():
+    # River names can occur on different continents. Group nearby source
+    # features only; never connect unrelated rivers merely by their name.
+    clusters = []
+    for source in sources:
+        shape = MultiLineString(source[1])
+        touching = [c for c in clusters if any(shape.distance(MultiLineString(s[1])) < .5 for s in c)]
+        group = [source]
+        for cluster in touching:
+            group.extend(cluster)
+            clusters.remove(cluster)
+        clusters.append(group)
+    if name == 'Nile':
+        # Natural Earth labels the main Nile course in several languages/sections.
+        # Preserve those sections and delta branches; Blue Nile remains separate.
+        clusters = [[s for n in sorted(nile_course) for s in by_name.get(n, [])]]
+    for group in clusters:
+        identity = min(s[0] for s in group)
+        whole_id = f'ne-v2-river-{identity}-whole' if name != 'Nile' else 'ne-v2-river-nile-whole'
+        full = whole_course([p for _, parts in group for p in parts])
+        if not full:
+            continue
+        originals = [f for f in catalog if f['kind'] == 'river' and
+                     any(f['id'].startswith(f'ne-v1-river-{i}-') for i, _ in group)]
+        for f in originals:
+            # Preserve specific tributary names as selectable full courses too.
+            if name != 'Nile' or f['name'].split(' · ')[0] == 'Nile':
+                f['replacementId'] = whole_id
+        aliases = list(dict.fromkeys(a for f in originals for a in f['aliases']))
+        # Nile aliases must not make a White Nile-only lookup match the entire Nile.
+        if name == 'Nile':
+            aliases = ['Nile', 'Nil']
+        catalog.append({
+            'id': whole_id, 'name': name, 'aliases': aliases, 'kind': 'river',
+            'region': '', 'countryCode': '', 'identifiers': {},
+            'detail': 'Whole named source course; all components simplified together, endpoints retained; source gaps are not invented',
+            'geometry': {'type': 'MultiLineString', 'coordinates': full},
+        })
 Path('assets/maps/context.json').write_text(json.dumps(
     {'rivers': rivers, 'cities': cities, 'lakes': lakes}, separators=(',', ':')) + '\n')
 Path('assets/maps/catalog.json').write_text(json.dumps(

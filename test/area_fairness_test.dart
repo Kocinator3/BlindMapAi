@@ -24,6 +24,30 @@ Question question(Geometry target) => Question(
 );
 
 void main() {
+  test(
+    'nearby disjoint thin outlines are forgiven by km tolerance, not overlap',
+    () {
+      final target = thinL(.001);
+      final shifted = Geometry('Polygon', [
+        target.points.map((p) => GeoPoint(p.lon + .05, p.lat + .05)).toList(),
+      ]);
+      final q = question(target);
+      final result = scoreAnswer(q, shifted);
+      expect(result.points, greaterThan(950));
+      expect(result.metadata.containsKey('iou'), isFalse);
+      final far = Geometry('Polygon', [
+        target.points.map((p) => GeoPoint(p.lon + 5, p.lat + 5)).toList(),
+      ]);
+      expect(scoreAnswer(q, far).points, lessThan(50));
+      final moderate = Geometry('Polygon', [
+        target.points.map((p) => GeoPoint(p.lon + .4, p.lat + .4)).toList(),
+      ]);
+      expect(
+        scoreAnswer(q, moderate, toleranceMultiplier: 2).points,
+        greaterThan(scoreAnswer(q, moderate, toleranceMultiplier: .5).points),
+      );
+    },
+  );
   test('slanted edge crossings split integration bands', () {
     const a = [XY(0, 0), XY(2, 2), XY(2, 0)];
     const b = [XY(0, 2), XY(2, 0), XY(0, 0)];
@@ -84,8 +108,8 @@ void main() {
       ]);
       expect(scoreAnswer(question(target), target).points, 1000);
       expect(
-        scoreAnswer(question(target), guess).metadata['iou'],
-        closeTo(.6, 1e-9),
+        scoreAnswer(question(target), guess).metadata['boundaryErrorKm'],
+        greaterThan(0),
       );
     }
   });
@@ -100,9 +124,9 @@ void main() {
     final target = thinL(.001);
     final guess = thinL(.0005);
     final result = scoreAnswer(question(target), guess);
-    // L area: 4*w - w*w; the projection is linear and its factor cancels.
-    final ratio = (4 * .0005 - .0005 * .0005) / (4 * .001 - .001 * .001);
-    expect(result.metadata['iou'], closeTo(ratio, .000001));
+    expect(result.points, 1000);
+    expect(result.metadata['boundaryErrorKm'], lessThan(0.1));
+    expect(result.metadata.containsKey('iou'), isFalse);
   });
   test(
     'reversing ring orientation and starting vertex does not alter overlap',

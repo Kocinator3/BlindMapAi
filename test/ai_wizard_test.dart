@@ -114,6 +114,8 @@ void main() {
       await press(tester, 'Continue to catalog proposal');
       await press(tester, 'Copy request and instructions for chat');
       expect(clipboard, contains('"action": "propose"'));
+      expect(clipboard, contains('ANGLICKÝ název'));
+      expect(clipboard, contains('"text":"Prague"'));
       expect(clipboard, contains('Praha, Brno and an unknown city'));
       final source = jsonEncode(draft(missing: true));
       await tester.enterText(find.byType(TextField), source);

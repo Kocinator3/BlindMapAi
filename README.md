@@ -46,17 +46,17 @@ Distribute all of `build/windows/x64/runner/Release/`, including `slepa_mapa.exe
 
 ## GitHub Release (Linux host)
 
-For the completed AI wizard milestone, run this single command from the repository:
+For the completed map/scoring milestone, run this single command from the repository:
 
 ```bash
 bash scripts/publish_release.sh
 ```
 
-It commits only the listed wizard files, creates `v0.1.4`, pushes `main` and the
+It commits only the listed milestone files, creates `v0.1.5`, pushes `main` and the
 tag, then calls the release builder below. It continues when changes are already
 committed, refuses unrelated changes or a conflicting tag, and never overwrites
 an existing release. Flutter is detected on PATH or at the session's `/tmp` SDK;
-set `FLUTTER_BIN` if yours is elsewhere. This helper targets version `0.1.4+5`.
+set `FLUTTER_BIN` if yours is elsewhere. This helper targets version `0.1.5+6`.
 
 `scripts/release.sh` runs analysis/tests, builds a fresh Android APK and Linux x64
 archive, adds SHA-256 checksums, and uploads them with GitHub CLI (`gh`).
@@ -89,8 +89,22 @@ Search names (including some Czech aliases), country or ID; filter by type; chec
 objects and inspect the map preview. Apply adds one question per checked part:
 cities as points, rivers as lines and lakes as exterior polygons. Mountains keep
 the existing polygon editor. The lake layer has its own visibility toggle.
-River segments and separate lake parts remain separate. Long geometries are
-simplified to 500 vertices; lake islands are visible but not subtracted in scoring.
+River references now cover the whole named source course as MultiLineString,
+with one shared 500-vertex budget preserving all component endpoints. Bends are
+simplified, never truncated. Separate lake parts remain separate; lake islands
+are visible but not subtracted in scoring. Legacy catalog river IDs resolve to
+whole courses on import. For already saved levels, open the editor and use
+**Replace segments with whole rivers**; this resets river prompts and combines
+repeated segments of the same river, then marks the level for review.
+
+Lake fill shares the river color and is drawn below country boundaries. City
+detail follows zoom and source population: capitals and cities of 2M+ remain,
+then thresholds fall through 500k, 100k and 20k to all cities at close zoom.
+The map caches projected source paths and city tiers to reduce redraw work.
+
+Area scoring uses boundary distance and absolute size error in kilometres,
+not overlap percentage. Half the configured tolerance is forgiven; larger errors
+decrease the score smoothly. The level tolerance multiplier applies to areas too.
 
 The AI author is a five-step wizard with a fixed progress indicator:
 **Method → Request → Catalog proposal → Review → Final level**.
@@ -120,6 +134,7 @@ then copy the approved catalog with the final prompt and paste the level JSON.
 API mode handles the same two requests, with a required review step between them.
 Neither mode requires sending individual searches or query pages manually.
 AI must include human-readable `userText` and `catalogText` alternatives.
+Catalog lookup names must be English; user-facing descriptions remain localized.
 Source-provided Wikidata/Natural Earth identifiers and country codes help lookup;
 unique `catalogId` still identifies the geometry.
 
