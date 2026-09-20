@@ -102,9 +102,9 @@ detail follows zoom and source population: capitals and cities of 2M+ remain,
 then thresholds fall through 500k, 100k and 20k to all cities at close zoom.
 The map caches projected source paths and city tiers to reduce redraw work.
 
-Area scoring uses boundary distance and absolute size error in kilometres,
-not overlap percentage. Half the configured tolerance is forgiven; larger errors
-decrease the score smoothly. The level tolerance multiplier applies to areas too.
+Area scoring uses the projected polygon intersection (sqrt IoU) with the
+configured regional projection. The level tolerance multiplier applies to all
+answer types.
 
 The AI author is a five-step wizard with a fixed progress indicator:
 **Method → Request → Catalog proposal → Review → Final level**.

@@ -207,9 +207,15 @@ void main() {
       geometry: reference,
     );
     expect(scoreAnswer(q, reference).points, 1000);
-    expect(scoreAnswer(q, polygon(14.5, 49, 1)).points, greaterThan(700));
-    expect(scoreAnswer(q, polygon(13, 48, 3)).points, lessThan(250));
-    expect(scoreAnswer(q, polygon(14.4, 49.4, .1)).points, lessThan(600));
+    expect(
+      scoreAnswer(q, polygon(14.5, 49, 1)).points,
+      inInclusiveRange(550, 610),
+    );
+    expect(
+      scoreAnswer(q, polygon(13, 48, 3)).points,
+      inInclusiveRange(320, 345),
+    );
+    expect(scoreAnswer(q, polygon(14.4, 49.4, .1)).points, lessThan(150));
     expect(scoreAnswer(q, polygon(0, 0, 1)).points, 0);
   });
   test('route vertex budget keeps the complete course and its endpoint', () {

@@ -335,18 +335,18 @@ catalog segment. Previous milestone is committed at `daaf80d`, tag `v0.1.4`.
 - City data adds historical Natural Earth pop_max. Cached zoom tiers retain all
   national capitals and 2M+ cities; thresholds relax through 500k/100k/20k to all
   cities at close zoom. Core rendering and gameplay stay fully offline.
-- Area scoring uses bidirectional sampled RMS boundary distance plus absolute
-  square-root-area size error, both in km, with a half-tolerance allowance and
-  smooth falloff. It no longer scores overlap percentages. Tolerance multiplier
-  applies to areas too. Existing historical results are not recalculated.
+- Area scoring is restored to projected polygon intersection with square-root
+  IoU, including the original `iou` and `coverage` metadata. Existing historical
+  results therefore keep the original polygon interpretation.
 - Release helper and app version advance to v0.1.5 / 0.1.5+6. Helper still stages
   only explicitly listed milestone files and does not run automatically.
 
 Regression coverage includes full Nile extent (equatorial source sections to
 Mediterranean delta), low scores for isolated short fragments, all legacy source
 endpoints retained, validity of every catalog record, explicit saved-level repair,
-English lookup prompt, population/zoom tiers, water/border draw order, long-stroke
-endpoint preservation, shifted thin polygons and tolerance scaling.
+English lookup prompt, population/zoom tiers, water/border draw order and
+long-stroke endpoint preservation. Polygon overlap tests retain the original
+IoU expectations.
 
 `.git` remains read-only in the session. No commit/push/publication attempted.
 After local verification and builds, user may run `bash scripts/publish_release.sh`
@@ -354,7 +354,7 @@ to stage these exact changes, commit, tag v0.1.5 and publish APK/Linux. Manual c
 
 ```sh
 git add README.md assets/maps/catalog.json assets/maps/context.json docs/CATALOG_TEXT_INSTRUCTIONS.md docs/ARCHITECTURE.md docs/DATA_SOURCES.md docs/KNOWN_ISSUES.md docs/PROJECT_STATE.md docs/level.schema.json integration_test/app_test.dart lib/data/ai_service.dart lib/data/catalog_text.dart lib/data/feature_catalog.dart lib/domain/geo.dart lib/domain/level.dart lib/domain/map_detail.dart lib/domain/scoring.dart lib/features/catalog_picker.dart lib/features/editor.dart lib/map/map_canvas.dart pubspec.yaml scripts/build_context_map.py scripts/publish_release.sh test/ai_wizard_test.dart test/area_fairness_test.dart test/catalog_test.dart test/catalog_text_test.dart test/domain_test.dart test/map_context_test.dart
-git commit -m "fix: use whole river courses and forgiving map scoring"
+git commit -m "fix: use whole river courses and restore polygon scoring"
 ```
 
 Finish the requested changes/tests/builds, then stop; no improvement loop.

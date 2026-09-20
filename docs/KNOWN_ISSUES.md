@@ -17,7 +17,7 @@ The repository is a working pre-release, not completion of every requested featu
 - Flutter and writable Android SDK live in /tmp and may be removed by system cleanup. Install them permanently for ongoing development.
 
 ## Resolved audits
-- Area scoring now uses boundary-distance tolerance in km instead of overlap percentage. Near offsets of thin polygons are forgiven; extreme size/location errors still reduce scores. Analytical polygon-area/intersection tests remain for the geometry utilities.
+- Area scoring uses projected polygon intersection (sqrt IoU). Analytical polygon-area/intersection tests cover thin, concave, antimeridian and high-latitude regions.
 - Authored mutation/rollback and settings updates serialize across failed concurrent saves; queued answer retries, cross-level record identity and settings rollback are regression-tested, including successful disk reload.
 - Gameplay responsive layout is widget-tested at narrow portrait, landscape, larger portrait and desktop sizes. Android device rotation, touch rendering and accessibility text scaling still need device/emulator acceptance.
 - Follow-up desktop editor test covers polygon click placement, move and delete. A short click on an area tool is dispatched only when no drawing gesture was recognized; completed strokes still suppress click placement.

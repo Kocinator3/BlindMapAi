@@ -26,7 +26,7 @@ Close polygon rings by repeating the first coordinate. No crossings or zero-area
 At most 100 questions, 500 vertices per question; regional polygons under 3500 km extent.
 Scoring: toleranceKm is a finite number from 0.1 to 2000; use 30 for cities, 15–30 for regional rivers.
 Level settings: hardcoreMode is a boolean (default false); an answer below 700/1000 ends a hardcore session.
-toleranceMultiplier is a finite number 0.25..4 (default 1), multiplying toleranceKm for all answer types. Areas are scored by boundary distance and absolute size error in kilometres, not overlap percentage; small offsets within half the tolerance are forgiven.
+toleranceMultiplier is a finite number 0.25..4 (default 1), multiplying toleranceKm for all answer types. Areas are scored by projected polygon intersection: report a plausible complete region, not a point or an enclosing world-sized polygon.
 Questions play in random order without repetition. Each prompt must stand alone, never refer to question numbers or preceding answers.
 Map showCountryBorders, showRivers, showLakes and showCities are booleans (default true). Rivers and city dots are unlabeled offline context, rivers and major cities cover all inhabited continents; City circles mark ordinary cities; pentagons mark national capitals. Never put names or answer highlights in map layers.
 Map center is [longitude, latitude]; longitudeSpan is 0.1..160 degrees.

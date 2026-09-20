@@ -116,36 +116,24 @@ ScoreResult scoreAnswer(
       selfIntersects(closeRing(answer.parts.first))) {
     return const ScoreResult(0);
   }
-  // Compare the entire boundary in kilometres. A small drawing offset should
-  // not erase the score of a narrow lake or mountain range with little overlap.
-  final a = closeRing(target.parts.first).map(projection.project).toList();
-  final b = closeRing(answer.parts.first).map(projection.project).toList();
+  // Integrate polygon cross-sections without a fixed grid that can miss thin
+  // regions. Areas still use the documented regional projection.
+  final a = expected.first, b = guessed.first;
   final targetArea = polygonArea(a), guessArea = polygonArea(b);
   if (targetArea <= 0 || guessArea <= 0) return const ScoreResult(0);
-  double meanSquaredDistance(List<XY> from, List<XY> to) {
-    final samples = _samples([from]);
-    return samples.fold<double>(0, (sum, p) {
-          final d = _lineDistance(p, [to]);
-          return sum + d * d;
-        }) /
-        samples.length;
-  }
-
-  final boundaryError = math.sqrt(
-    (meanSquaredDistance(a, b) + meanSquaredDistance(b, a)) / 2,
-  );
-  // Absolute size error in km discourages a dot or a giant enclosing region,
-  // without scoring by overlap percentage. Both terms respect level tolerance.
-  final sizeError = (math.sqrt(targetArea) - math.sqrt(guessArea)).abs() / 2;
-  final error = math.max(boundaryError, sizeError);
-  final value = proximity(math.max(0, error - tolerance / 2), tolerance);
+  final intersection = polygonIntersectionArea(
+    a,
+    b,
+  ).clamp(0.0, math.min(targetArea, guessArea));
+  final coverage = intersection / targetArea;
+  final iou = intersection / (targetArea + guessArea - intersection);
+  // Square root makes approximate educational outlines less punishing.
   return ScoreResult(
-    (1000 * value).round().clamp(0, 1000),
-    distance: boundaryError,
+    (1000 * math.sqrt(iou.clamp(0, 1))).round(),
+    coverage: coverage,
     metadata: {
-      'boundaryErrorKm': boundaryError,
-      'sizeErrorKm': sizeError,
-      'toleranceKm': tolerance,
+      'iou': iou,
+      'coverage': coverage,
       'targetAreaKm2': targetArea,
       'guessAreaKm2': guessArea,
     },

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Publish the full-course rivers and map/scoring milestone. Run manually.
+# Publish the full-course rivers and restored polygon-scoring milestone. Run manually.
 # Explicit paths prevent accidentally committing unrelated work or credentials.
 cd "$(dirname "$0")/.."
-tag=v0.1.5
+tag=v0.1.6
 if [[ "${1:-}" == --help ]]; then
   printf '%s\n' 'Usage: bash scripts/publish_release.sh' \
     'Commits map/scoring changes, pushes main and v0.1.5, then publishes APK and Linux.'
@@ -62,7 +62,7 @@ for path in "${paths[@]}"; do
   fi
 done
 if ! git diff --cached --quiet; then
-  git commit -m "fix: use whole river courses and forgiving map scoring"
+  git commit -m "fix: use whole river courses and restore polygon scoring"
 else
   printf '%s\n' 'Changes are already committed; continuing to tag and release.'
 fi
