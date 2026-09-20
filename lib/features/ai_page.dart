@@ -5,9 +5,12 @@ import '../data/ai_service.dart';
 import '../data/store.dart';
 import '../data/feature_catalog.dart';
 import 'catalog_picker.dart';
+import 'catalog_text_page.dart';
+import 'catalog_repair.dart';
 import '../domain/geo.dart';
 import '../domain/level.dart';
 import 'editor.dart';
+import 'ai_connection_guide.dart';
 
 class AiPage extends StatefulWidget {
   final AppStore store;
@@ -136,13 +139,16 @@ class _AiPageState extends State<AiPage> {
         );
         return;
       }
-      final level = await (await FeatureCatalog.load()).decode(
+      final level = await decodeAuthoringWithRepair(
+        context,
         extractJsonObject(response),
+        czech: widget.store.language == 'cs',
+        requireCatalogText: true,
         requiredIds: selected.isEmpty
             ? null
             : selected.map((f) => f.id).toSet(),
       );
-      if (!mounted || token != generation) return;
+      if (!mounted || token != generation || level == null) return;
       final unverified = LevelCodec().fromJson({
         ...level.toJson(),
         'unverified': true,
@@ -219,6 +225,27 @@ class _AiPageState extends State<AiPage> {
                 'Choose rivers, lakes and cities from the catalog first. AI receives the checked list and uses map data. Describe mountains in the concepts.',
               ),
             ),
+            OutlinedButton.icon(
+              onPressed: busy
+                  ? null
+                  : () async {
+                      final result = await Navigator.push<List<CatalogFeature>>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => CatalogTextPage(
+                            czech: widget.store.language == 'cs',
+                            land: widget.land,
+                            concepts: concepts.text,
+                          ),
+                        ),
+                      );
+                      if (mounted && result != null) {
+                        setState(() => selected = result);
+                      }
+                    },
+              icon: const Icon(Icons.chat_outlined),
+              label: Text(tr('Textový výběr s AI', 'Text selection with AI')),
+            ),
             if (selected.isNotEmpty)
               TextButton(
                 onPressed: busy ? null : offlineDraft,
@@ -275,6 +302,30 @@ class _AiPageState extends State<AiPage> {
               tr('Poskytovatel API', 'API provider'),
               style: Theme.of(context).textTheme.titleLarge,
             ),
+            OutlinedButton.icon(
+              onPressed: busy
+                  ? null
+                  : () async {
+                      final preset = await Navigator.push<AiConnectionPreset>(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AiConnectionGuide(
+                            czech: widget.store.language == 'cs',
+                          ),
+                        ),
+                      );
+                      if (!mounted || preset == null) return;
+                      setState(() {
+                        name.text = preset.name;
+                        base.text = preset.baseUrl;
+                        model.clear();
+                        key.clear();
+                        message = null;
+                      });
+                    },
+              icon: const Icon(Icons.help_outline),
+              label: Text(tr('Jak připojit AI přes API', 'Connect AI via API')),
+            ),
             TextField(
               controller: name,
               decoration: InputDecoration(
@@ -294,9 +345,7 @@ class _AiPageState extends State<AiPage> {
             ),
             TextField(
               controller: base,
-              decoration: const InputDecoration(
-                labelText: 'Base URL (including /v1)',
-              ),
+              decoration: const InputDecoration(labelText: 'Base URL'),
             ),
             TextField(
               controller: model,

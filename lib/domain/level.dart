@@ -133,7 +133,12 @@ class LevelValidationException implements Exception {
 class LevelCodec {
   final Map<String, Question> catalog;
   final Set<String>? requiredCatalogIds;
-  LevelCodec({this.catalog = const {}, this.requiredCatalogIds});
+  final bool requireCatalogText;
+  LevelCodec({
+    this.catalog = const {},
+    this.requiredCatalogIds,
+    this.requireCatalogText = false,
+  });
   static const maxBytes = 2 * 1024 * 1024;
   static const maxQuestions = 100;
   static const maxVertices = 500;
@@ -263,6 +268,9 @@ class LevelCodec {
       var q = object(rawQuestions[i], 'questions[$i]');
       if (q.containsKey('catalogId')) {
         final catalogId = string(q['catalogId'], 'questions[$i].catalogId');
+        if (requireCatalogText || q.containsKey('catalogText')) {
+          string(q['catalogText'], 'questions[$i].catalogText');
+        }
         final source = catalog[catalogId];
         if (source == null) {
           fail(
@@ -273,14 +281,17 @@ class LevelCodec {
         if (!selectedCatalogIds.add(catalogId)) {
           fail('questions[$i].catalogId', 'Duplicate catalog selection.');
         }
-        q = {
-          ...source.toJson(),
-          ...q,
-          'geometry': source.geometry.toJson(),
-          'answerType': source.answerType.name,
-          'category': source.category,
-          'tags': source.tags,
-        }..remove('catalogId');
+        q =
+            {
+                ...source.toJson(),
+                ...q,
+                'geometry': source.geometry.toJson(),
+                'answerType': source.answerType.name,
+                'category': source.category,
+                'tags': source.tags,
+              }
+              ..remove('catalogId')
+              ..remove('catalogText');
       }
       keys(q, [
         'id',

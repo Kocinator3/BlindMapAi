@@ -52,3 +52,12 @@ Question lake geometry is the exterior only: **islands are not subtracted from
 area scoring**. Source detail remains visible on the map. No AI coordinates are
 used for catalog references; nevertheless source generalization, simplification
 and teaching suitability require review. Catalog-created levels start unverified.
+
+## Identifier metadata
+
+The same source revision supplies optional Natural Earth `ne_id` identifiers
+(8,707 catalog entries), valid Wikidata Q identifiers (621 entries) and two-letter
+country codes (7,329 entries). Missing values are omitted, never inferred.
+An international identifier can describe multiple geometry parts; `catalogId`
+remains the unique selectable reference. The bundled text protocol `ne-v1`
+uses exact identifier lookup, stable ID sorting and paginated results.

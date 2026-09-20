@@ -6,8 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../data/store.dart';
-import '../data/feature_catalog.dart';
 import 'catalog_picker.dart';
+import 'catalog_repair.dart';
 import '../domain/geo.dart';
 import '../domain/level.dart';
 import '../map/map_canvas.dart';
@@ -36,6 +36,7 @@ class _JsonPage extends StatefulWidget {
 class _JsonPageState extends State<_JsonPage> {
   late final text = TextEditingController(text: widget.level?.encode() ?? '');
   bool applied = false;
+  bool running = false;
   String? message;
   String tr(String cs, String en) => widget.czech ? cs : en;
   @override
@@ -45,10 +46,14 @@ class _JsonPageState extends State<_JsonPage> {
   }
 
   Future<void> run(Future<void> Function() action) async {
+    if (running) return;
+    setState(() => running = true);
     try {
       await action();
     } catch (e) {
       if (mounted) setState(() => message = e.toString());
+    } finally {
+      if (mounted) setState(() => running = false);
     }
   }
 
@@ -69,8 +74,12 @@ class _JsonPageState extends State<_JsonPage> {
               children: [
                 TextButton(
                   onPressed: () => run(() async {
-                    final level = await decodeAuthoringLevel(text.text);
-                    if (!context.mounted) return;
+                    final level = await decodeAuthoringWithRepair(
+                      context,
+                      text.text,
+                      czech: widget.czech,
+                    );
+                    if (!context.mounted || level == null) return;
                     text.text = level.encode();
                     setState(
                       () => message = tr('JSON je platný.', 'JSON is valid.'),
@@ -123,8 +132,12 @@ class _JsonPageState extends State<_JsonPage> {
                 ),
                 TextButton(
                   onPressed: () => run(() async {
-                    final level = await decodeAuthoringLevel(text.text);
-                    if (!context.mounted) return;
+                    final level = await decodeAuthoringWithRepair(
+                      context,
+                      text.text,
+                      czech: widget.czech,
+                    );
+                    if (!context.mounted || level == null) return;
                     if (Platform.isAndroid) {
                       final saved =
                           await const MethodChannel('org.slepamapa/files')
@@ -164,6 +177,7 @@ class _JsonPageState extends State<_JsonPage> {
             Expanded(
               child: TextField(
                 controller: text,
+                readOnly: running,
                 maxLines: null,
                 expands: true,
                 maxLength: LevelCodec.maxBytes,
@@ -178,8 +192,12 @@ class _JsonPageState extends State<_JsonPage> {
             const SizedBox(height: 12),
             FilledButton(
               onPressed: () => run(() async {
-                final level = await decodeAuthoringLevel(text.text);
-                if (!context.mounted) return;
+                final level = await decodeAuthoringWithRepair(
+                  context,
+                  text.text,
+                  czech: widget.czech,
+                );
+                if (!context.mounted || level == null) return;
                 setState(() => applied = true);
                 Navigator.pop(context, level);
               }),

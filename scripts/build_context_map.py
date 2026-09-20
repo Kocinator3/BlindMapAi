@@ -3,6 +3,7 @@ Usage: python scripts/build_context_map.py rivers.geojson cities.geojson lakes.g
 Requires Shapely. Provenance and representation limits: docs/DATA_SOURCES.md.
 """
 import json
+import re
 import sys
 from pathlib import Path
 from shapely.geometry import Polygon, LineString
@@ -86,6 +87,11 @@ for kind, source in zip(['river', 'city', 'lake'], sys.argv[1:]):
                 'id': f'ne-v1-{kind}-{identity}-{part_index}',
                 'name': name + suffix, 'aliases': aliases, 'kind': kind,
                 'region': props.get('adm0name') or props.get('admin') or '',
+                'countryCode': props.get('iso_a2') if re.fullmatch(r'[A-Z]{2}', props.get('iso_a2') or '') else '',
+                'identifiers': {
+                    **({'naturalEarth': str(props['ne_id'])} if props.get('ne_id') else {}),
+                    **({'wikidata': props['wikidataid']} if re.fullmatch(r'Q[1-9][0-9]*', props.get('wikidataid') or '') else {}),
+                },
                 'detail': ('Exterior outline; islands excluded from scoring' if kind == 'lake'
                            else 'Source segment' if len(parts) > 1 else 'Natural Earth'),
                 'geometry': {'type': {'city': 'Point', 'river': 'LineString', 'lake': 'Polygon'}[kind],

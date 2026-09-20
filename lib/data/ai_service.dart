@@ -33,8 +33,9 @@ Map center is [longitude, latitude]; longitudeSpan is 0.1..160 degrees.
 Do not invent uncertain geographic details. Explain approximations. ALWAYS set unverified=true.
 AI geography always requires human review. Do not include API keys or provider settings.
 For cities, rivers and lakes, select exact catalogId values from the offline catalog below. If the list is empty, do not generate cities, rivers or lakes: state in the level description that the author needs to select them in the catalog first.
+Always include a human-readable catalogText alternative for each catalog question, in the requested language. Treat this label as explanatory text, never as an ID or proof of identity. Wikidata IDs, Natural Earth IDs and country codes are only lookup metadata; use exact catalogId for a concrete part. Never fabricate missing external identifiers.
 Never invent their coordinates or IDs. Each catalog item is a selectable source part: do not join river segments or lake parts.
-For catalog questions output {"id":"unique-question-id","catalogId":"exact ID","prompt":"localized stand-alone question"}.
+For catalog questions output {"id":"unique-question-id","catalogId":"exact ID","catalogText":"human-readable name, type and location from the supplied catalog","prompt":"localized stand-alone question"}.
 Omit geometry and answerType for these questions: the importer copies the bundled geometry and sets point for cities, polyline for rivers, polygon for lakes. Any supplied geometry/type is replaced locally.
 This is an authoring shorthand only. Import resolves IDs BEFORE canonical Level v1 validation; saved/exported levels always contain complete geometry and work offline without catalog lookup.
 Lakes use generalized exterior outlines with at most 500 source-derived vertices; islands are not subtracted in scoring. Map context retains island holes. Mark these limits for review.
@@ -160,7 +161,6 @@ class CompatibleAiProvider implements AiProvider {
             'messages': [
               {'role': 'user', 'content': prompt},
             ],
-            'temperature': 0.2,
           }),
         );
         final response = await request.close();

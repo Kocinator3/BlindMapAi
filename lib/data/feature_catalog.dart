@@ -6,7 +6,8 @@ import '../domain/geo.dart';
 import '../domain/level.dart';
 
 class CatalogFeature {
-  final String id, name, kind, region, detail;
+  final String id, name, kind, region, detail, countryCode;
+  final Map<String, String> identifiers;
   final List<String> aliases;
   final Geometry geometry;
   CatalogFeature(Map<String, dynamic> json)
@@ -14,6 +15,10 @@ class CatalogFeature {
       name = json['name'] as String,
       kind = json['kind'] as String,
       region = json['region'] as String,
+      countryCode = json['countryCode'] as String? ?? '',
+      identifiers = Map<String, String>.from(
+        json['identifiers'] as Map? ?? const {},
+      ),
       detail = json['detail'] as String,
       aliases = List<String>.from(json['aliases'] as List),
       geometry = _geometry(json['geometry'] as Map<String, dynamic>);
@@ -36,6 +41,10 @@ class CatalogFeature {
         ],
     ]);
   }
+
+  String get sourceGroupId =>
+      id.contains('-') ? id.substring(0, id.lastIndexOf('-')) : id;
+  int get partNumber => (int.tryParse(id.split('-').last) ?? 0) + 1;
 
   Question question({bool czech = true}) => Question(
     id: id,
@@ -85,6 +94,9 @@ class CatalogFeature {
 class FeatureCatalog {
   final List<CatalogFeature> features;
   FeatureCatalog(this.features);
+  late final Map<String, CatalogFeature> byId = {
+    for (final f in features) f.id: f,
+  };
   static Future<FeatureCatalog>? _cached;
   static FeatureCatalog? _value;
   static Future<FeatureCatalog> load() async {
@@ -105,6 +117,14 @@ class FeatureCatalog {
     ]);
   }
 
+  late final Map<String, int> partCounts = (() {
+    final counts = <String, int>{};
+    for (final f in features) {
+      counts.update(f.sourceGroupId, (n) => n + 1, ifAbsent: () => 1);
+    }
+    return counts;
+  })();
+
   Map<String, Question> questions({bool czech = true}) => {
     for (final f in features) f.id: f.question(czech: czech),
   };
@@ -117,7 +137,12 @@ class FeatureCatalog {
         'aliases': f.aliases,
         'kind': f.kind,
         'region': f.region,
+        'countryCode': f.countryCode,
+        'identifiers': f.identifiers,
         'center': f.map.center.toJson(),
+        'sourceGroupId': f.sourceGroupId,
+        'partNumber': f.partNumber,
+        'partCount': partCounts[f.sourceGroupId],
       },
   ]);
 

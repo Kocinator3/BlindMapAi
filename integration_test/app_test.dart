@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
@@ -116,6 +117,49 @@ void main() {
         resolved.questions.single.geometry.toJson(),
         selected.last.geometry.toJson(),
       );
+      await tester.tap(find.byType(TextField));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byType(TextField),
+        jsonEncode({
+          'schemaVersion': 1,
+          'id': 'repair',
+          'title': 'Repair',
+          'language': 'en',
+          'questions': [
+            {
+              'catalogId': 'missing-lake-id',
+              'catalogText': selected.last.name,
+              'prompt': 'Wrong lake',
+            },
+          ],
+        }),
+      );
+      await tester.tap(find.text('Format and validate'));
+      await tester.pumpAndSettle();
+      expect(find.text('Invalid catalog item'), findsOneWidget);
+      final repairInput = find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.byType(TextField),
+      );
+      await tester.tap(repairInput);
+      await tester.pumpAndSettle();
+      await tester.enterText(repairInput, selected.last.id);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Use entered ID'));
+      await tester.pumpAndSettle();
+      final repaired = LevelCodec().decode(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+      );
+      expect(
+        repaired.questions.single.geometry.toJson(),
+        selected.last.geometry.toJson(),
+      );
+      expect(
+        repaired.questions.single.prompt,
+        selected.last.question(czech: false).prompt,
+      );
+
       expect(tester.takeException(), isNull);
     },
   );

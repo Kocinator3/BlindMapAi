@@ -40,6 +40,7 @@ void main() {
         model: 'test',
       );
       expect(await provider.generate(config, 'hello'), '{"schemaVersion":1}');
+      expect(requests.single.keys, unorderedEquals(['model', 'messages']));
       expect(requests.single['messages'], [
         {'role': 'user', 'content': 'hello'},
       ]);

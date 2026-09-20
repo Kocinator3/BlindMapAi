@@ -85,11 +85,26 @@ the prompt or generating**; the prompt includes their names, IDs, types and
 centers. AI returns `catalogId` references and localized question text. API
 responses and JSON imports resolve references from bundled data before canonical
 validation; any AI geometry for those references is replaced. Unknown/duplicate
-IDs are rejected, and API generation requires the complete checked selection.
+IDs open a repair dialog with suggestions, manual selection and deletion. Nothing
+is substituted automatically. API generation requires the checked selection unless
+the author explicitly repairs it.
 **Create from selection without AI** opens the same source-backed draft offline.
 Saved/exported Level v1 JSON always embeds full geometry, with no lookup required.
 
-AI is optional. Copy prompt works without a connection. API generation sends concepts, the checked catalog list and the schema only when requested. Use an HTTPS compatible `/v1` base URL, or an HTTP loopback endpoint for a local model. Keys live only in memory for the open settings page. Responses are bounded, parsed, validated and marked unverified before review.
+AI is optional. Copy prompt works without a connection. API generation sends concepts, the checked catalog list and the schema only when requested. Use the provider’s HTTPS compatible base URL, or an HTTP loopback endpoint for a local model. Keys live only in memory for the open settings page. Responses are bounded, parsed, validated and marked unverified before review.
+
+The **Connect AI via API** button provides offline Czech/English tutorials and
+endpoint presets for OpenAI, Gemini, Claude, DeepSeek and local Ollama; see the
+[connection guide](docs/AI_CONNECTION_GUIDE.md). Applying a preset clears the old
+model and key without sending a request.
+
+**Text selection with AI** provides a bounded search → results → selection
+protocol, with stable ordering and explicit disambiguation. Copy the bundled
+[instructions](docs/CATALOG_TEXT_INSTRUCTIONS.md) to a chat, process its JSON
+queries locally and return the actual results. Only IDs offered in this session
+can be selected without manual approval. AI must include human-readable `userText`
+and `catalogText` alternatives. Source-provided Wikidata/Natural Earth identifiers
+and country codes help lookup; unique `catalogId` still identifies the geometry.
 
 ## Checks and CI
 

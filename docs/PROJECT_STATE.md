@@ -167,3 +167,72 @@ git commit -m "feat: add offline lake layer and source-backed authoring catalog"
 User stop instruction: after successful builds and verification, end this task;
 do not continue the audit/improvement loop. Remaining general product issues in
 KNOWN_ISSUES.md are future work, not authorization to keep this session running.
+
+## 2026-09-20 — Catalog text protocol, repairs and API tutorials (v0.1.3)
+
+The previous catalog milestone is committed at `0ad2bca` and tagged `v0.1.2`.
+This session preserves and completes the subsequent user-requested work:
+
+- Added bundled `docs/CATALOG_TEXT_INSTRUCTIONS.md` and an offline text-selection
+  page: bounded JSON search, deterministic ID ordering, pagination, exact/contains
+  lookup and explicit selection. Only IDs actually offered in the current session
+  can be selected without human approval. Never fabricate catalog results.
+- Added mandatory human-readable `userText` for protocol requests and selected
+  items, plus `catalogText` in new API-generated catalog questions. Old valid
+  imports remain compatible. Canonical exports still embed geometry, not references.
+- Added source-provided Wikidata/Natural Earth identifiers and country codes;
+  source group/part metadata explains ambiguity. Counts and limits are documented
+  in DATA_SOURCES.md; source geometry and catalog IDs are unchanged.
+- Invalid/duplicate catalog references open a transactional repair dialog with
+  similar suggestions, exact ID entry, manual catalog choice, deletion and cancel.
+  No suggestion is accepted automatically. Replacing a reference resets stale
+  question text/hints. Cancel preserves the original draft; deleting all questions
+  produces an actionable validation error. Author corrections explicitly supersede
+  the originally checked AI selection; untouched replies still require that set.
+- Added offline Czech/English API tutorials directly in the AI author page for
+  OpenAI, Gemini, Claude, DeepSeek and Ollama, with official documentation links,
+  endpoint presets, model/key setup, connection testing and troubleshooting.
+  Presets clear old model/key and never send a request. Model IDs are entered from
+  the provider's available models instead of embedding soon-obsolete examples.
+- Provider requests omit optional temperature to accommodate models that reject
+  custom sampling parameters. No provider-specific request branches or secrets
+  were added. Claude workspace-header keys remain unsupported; guide explains it.
+  Local Ollama is loopback-only over HTTP; remote connections still require HTTPS.
+- App version is `0.1.3+4`; next unused local release tag is `v0.1.3`.
+
+Verification: `dart format .`; 98 unit/widget tests passed, including protocol
+bounds, ID lookup, source metadata, transactional repair and deletion, text page,
+provider preset secret clearing and narrow-screen English guide. All 4 native
+Linux integration tests passed on `DISPLAY=:0`, including invalid-reference repair.
+No real paid AI request was sent. Official provider documentation was checked;
+actual account/model compatibility must be checked with Test connection.
+
+Release handoff: pushing a tag alone does not publish a GitHub Release; the
+workflow only uploads CI artifacts. `scripts/release.sh` builds and publishes APK,
+Linux archive and hashes after checking a clean worktree and a pushed tag at HEAD.
+The user's request is for commands; no remote push or publication was performed.
+`.git` is explicitly read-only in this session, so no local commit was attempted.
+All source changes remain in the worktree. Run from the project directory:
+
+```sh
+git add README.md assets/maps/catalog.json docs/AI_CONNECTION_GUIDE.md docs/CATALOG_TEXT_INSTRUCTIONS.md docs/DATA_SOURCES.md docs/PROJECT_STATE.md integration_test/app_test.dart lib/data/ai_service.dart lib/data/catalog_text.dart lib/data/feature_catalog.dart lib/domain/level.dart lib/features/ai_page.dart lib/features/ai_connection_guide.dart lib/features/catalog_picker.dart lib/features/catalog_repair.dart lib/features/catalog_text_page.dart lib/features/editor.dart pubspec.yaml scripts/build_context_map.py test/ai_http_test.dart test/ai_connection_guide_test.dart test/catalog_text_test.dart
+git commit -m "feat: add guided AI catalog selection and API tutorials"
+git tag -a v0.1.3 -m "SlepáMapa v0.1.3"
+git push --atomic origin main refs/tags/v0.1.3
+FLUTTER_BIN=/tmp/slepamapa-flutter/bin/flutter bash scripts/release.sh v0.1.3
+```
+
+Stop after verification/builds, as explicitly requested. Do not restart the audit
+loop; existing general product issues remain future work.
+
+Final verification: `flutter analyze --no-pub` and `git diff --check` passed.
+Android release build passed (62.3 MB):
+`build/app/outputs/flutter-apk/app-release.apk`. Linux release build and packaging
+passed: `dist/slepamapa-linux-x64.tar.gz`. Both contain byte-identical current
+catalog and text-protocol assets; Linux executable permissions and notices were
+verified. Existing catalog geometry/fields remain unchanged by added metadata.
+Android SDK XML version warning was nonfatal; Android signing retains the existing
+development configuration. Android runtime and Windows builds were not tested.
+Native test app exited; no app/server or improvement loop is left running.
+Requested implementation and local builds are complete; release awaits the manual
+commit/tag/publish commands above.

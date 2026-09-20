@@ -130,7 +130,7 @@ class _CatalogPickerState extends State<CatalogPicker> {
                           value: checked,
                           title: Text(f.name),
                           subtitle: Text(
-                            '${label(f.kind)} · ${f.region.isEmpty ? '${f.map.center.lon.toStringAsFixed(2)}, ${f.map.center.lat.toStringAsFixed(2)}' : f.region}\n${f.id}',
+                            '${label(f.kind)} · ${f.region.isEmpty ? '${f.map.center.lon.toStringAsFixed(2)}, ${f.map.center.lat.toStringAsFixed(2)}' : f.region}\n${f.id}${f.identifiers.containsKey('wikidata') ? ' · Wikidata ${f.identifiers['wikidata']}' : ''}',
                           ),
                           secondary: IconButton(
                             tooltip: tr('Náhled na mapě', 'Preview on map'),
